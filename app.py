@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 
 from linebot.v3 import WebhookHandler
+from linebot.v3.messaging import Configuration
 from linebot.v3.exceptions import InvalidSignatureError
 
 load_dotenv()
