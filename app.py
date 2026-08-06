@@ -68,8 +68,14 @@ def process_command(text):
 
     elif text.lower() == "about":
         return (
-            "SubWise\n"
-            "AI 智慧記帳與訂閱管理管家"
+            "🤖 SubWise\n\n"
+            "AI 智慧記帳與訂閱管理管家\n\n"
+            "目前功能：\n"
+            "✅ LINE Bot 對話\n"
+            "✅ 指令管理\n"
+            "🚧 AI 記帳開發中\n"
+            "🚧 發票辨識開發中\n"
+            "🚧 訂閱提醒開發中"
         )
 
     elif text.lower() == "ping":
