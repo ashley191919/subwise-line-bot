@@ -25,9 +25,9 @@ worksheets = sheet.worksheets()
 
 print(f"📚 工作表數量：{len(worksheets)}")
 
-print("\n目前工作表：")
+print("\n📚 目前工作表：")
 
-for ws in worksheets:
-    print(f"✅ {ws.title}")
+for index, ws in enumerate(worksheets, start=1):
+    print(f"{index}. {ws.title}")
 
-print("\n🎯 Day06 驗證完成！")
+print("\n🎯 Day06：Google Sheets 環境驗證完成！")
