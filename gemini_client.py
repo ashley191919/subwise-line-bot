@@ -191,6 +191,92 @@ target 只能使用：
     "target": "expenses"
 }
 
+【Query JSON 格式】
+
+{
+    "type": "query",
+    "target": "subscription",
+    "period": "all",
+    "keyword": null
+}
+
+query 只能使用以下欄位：
+
+- type
+- target
+- period
+- keyword
+
+target 只能使用：
+
+- expense：查詢消費資料
+- subscription：查詢訂閱資料
+
+period 只能使用：
+
+- today：今天
+- yesterday：昨天
+- week：本週
+- month：本月
+- all：全部資料
+
+keyword：
+
+- 如果使用者指定服務名稱，例如 Netflix，填入 "Netflix"
+- 如果沒有指定關鍵字，使用 null
+
+【Query 判斷範例】
+
+「我有哪些訂閱？」
+→
+
+{
+    "type": "query",
+    "target": "subscription",
+    "period": "all",
+    "keyword": null
+}
+
+「Netflix 什麼時候扣款？」
+→
+
+{
+    "type": "query",
+    "target": "subscription",
+    "period": "all",
+    "keyword": "Netflix"
+}
+
+「我最近有哪些消費？」
+→
+
+{
+    "type": "query",
+    "target": "expense",
+    "period": "week",
+    "keyword": null
+}
+
+「我這個月花多少錢？」
+→
+
+{
+    "type": "query",
+    "target": "expense",
+    "period": "month",
+    "keyword": null
+}
+
+「我今天花了多少錢？」
+→
+
+{
+    "type": "query",
+    "target": "expense",
+    "period": "today",
+    "keyword": null
+}
+
 【Chat JSON 格式】
 如果使用者只是一般聊天，
 type 必須使用 "chat"。
@@ -270,11 +356,11 @@ chat 只能使用以下欄位：
 6. 如果資訊不足，
    對應欄位使用 null。
 7. billing_cycle 只能使用：
-- monthly
-- yearly
-- weekly
-- daily
-- unknown
+    - monthly
+    - yearly
+    - weekly
+    - daily
+    - unknown
 8. 如果無法判斷扣款週期，
    使用 null。
 
@@ -286,6 +372,16 @@ chat 只能使用以下欄位：
 3. Query 不負責直接讀取 Google Sheets。
 4. Gemini 只負責判斷使用者想查什麼。
 5. 實際資料查詢由 Python 程式負責。
+6. 如果使用者是在查詢既有消費或訂閱資料，必須使用 query。
+7. 查詢消費時 target 使用 expense。
+8. 查詢訂閱時 target 使用 subscription。
+9. 如果使用者沒有指定服務名稱，keyword 使用 null。
+10. 如果使用者詢問「我有哪些訂閱」，period 使用 all。
+11. 如果使用者詢問「最近有哪些消費」，period 使用 week。
+12. 如果使用者詢問「這個月花多少錢」，period 使用 month。
+13. 如果使用者詢問「今天花多少錢」，period 使用 today。
+14. query 不需要 amount、category、item、date 等 expense 欄位。
+15. query 不需要 name、billing_cycle、next_billing_date 等 subscription 欄位。
 
 
 也必須輸出合法 JSON。
@@ -310,6 +406,7 @@ chat 只能使用以下欄位：
    但 category、type、target、billing_cycle
    必須使用指定的英文值。
 """
+
 def ask_gemini(prompt):
     """
     傳送文字給 SubWise AI，

@@ -1,5 +1,6 @@
 import gspread
 from google.oauth2.service_account import Credentials
+from datetime import date, timedelta
 
 
 SCOPES = [
@@ -64,3 +65,108 @@ def delete_expense(row):
     worksheet.delete_rows(row)
 
     return True
+
+def get_subscriptions():
+    """取得所有訂閱資料。"""
+
+    worksheet = get_worksheet("Subscriptions")
+
+    return worksheet.get_all_records()
+
+def query_data(target):
+    """
+    根據查詢目標取得資料。
+    
+    target:
+        expense → 消費資料
+        subscription → 訂閱資料
+    """
+
+    if target == "expense":
+        return get_expenses()
+
+    elif target == "subscription":
+        return get_subscriptions()
+
+    else:
+        print(f"⚠️ 不支援的查詢目標：{target}")
+        return []
+
+def filter_expenses_by_period(expenses, period):
+    """
+    根據 period 篩選消費資料。
+
+    period:
+        today
+        yesterday
+        week
+        month
+        all
+    """
+
+    if period == "all":
+        return expenses
+
+    today = date.today()
+
+    if period == "today":
+        start_date = today
+        end_date = today
+
+    elif period == "yesterday":
+        start_date = today - timedelta(days=1)
+        end_date = start_date
+
+    elif period == "week":
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+
+    elif period == "month":
+        start_date = today.replace(day=1)
+        end_date = today
+
+    else:
+        print(f"⚠️ 不支援的查詢期間：{period}")
+        return []
+
+    filtered = []
+
+    for expense in expenses:
+
+        expense_date = expense.get("Date")
+
+        if not expense_date:
+            continue
+
+        try:
+            expense_date = date.fromisoformat(str(expense_date))
+        except ValueError:
+            continue
+
+        if start_date <= expense_date <= end_date:
+            filtered.append(expense)
+
+    return filtered
+
+def filter_subscriptions_by_keyword(subscriptions, keyword):
+    """
+    根據訂閱服務名稱搜尋資料。
+    """
+
+    if not keyword:
+        return subscriptions
+
+    keyword = str(keyword).strip().lower()
+
+    filtered = []
+
+    for subscription in subscriptions:
+
+        service = str(
+            subscription.get("Service", "")
+        ).strip().lower()
+
+        if keyword in service:
+            filtered.append(subscription)
+
+    return filtered
