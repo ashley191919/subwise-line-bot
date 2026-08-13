@@ -1,3 +1,5 @@
+import os
+import json
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import date, timedelta
@@ -12,10 +14,20 @@ SCOPES = [
 def get_worksheet(sheet_name="Expenses"):
     """取得指定的 Google Sheets 工作表。"""
 
-    credentials = Credentials.from_service_account_file(
-        "credentials.json",
-        scopes=SCOPES
-    )
+    if os.getenv("GOOGLE_CREDENTIALS_JSON"):
+        credentials_info = json.loads(
+            os.getenv("GOOGLE_CREDENTIALS_JSON")
+        )
+
+        credentials = Credentials.from_service_account_info(
+            credentials_info,
+            scopes=SCOPES,
+        )
+    else:
+        credentials = Credentials.from_service_account_file(
+            "credentials.json",
+            scopes=SCOPES,
+        )
 
     client = gspread.authorize(credentials)
 
