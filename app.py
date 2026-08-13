@@ -159,6 +159,7 @@ def handle_message(event):
     # 取得使用者輸入
     text = event.message.text.strip()
 
+    print("🔥 DAY 12 TEST - Render 收到 LINE 訊息")
     print(f"📩 LINE 收到訊息：{text}")
 
     # 固定指令
