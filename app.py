@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 import os
 from dotenv import load_dotenv
+from gemini_client import ask_gemini
 
 from linebot.v3 import WebhookHandler
 from linebot.v3.messaging import (
@@ -87,15 +88,87 @@ def process_command(text):
             "💡 提示：輸入 help 或 menu 查看目前可使用的功能。"
         )
 
+def process_ai_message(text):
+    """使用 Gemini 判斷使用者意圖，並回傳 AI 回覆。"""
+
+    data = ask_gemini(text)
+
+    if not data:
+        return "⚠️ SubWise AI 暫時無法處理這則訊息，請稍後再試。"
+
+    data_type = data.get("type")
+
+    print(f"📦 Gemini JSON：{data}")
+
+    if data_type == "chat":
+        return data.get(
+            "message",
+            "🤖 我是 SubWise，你的 AI 智慧記帳與訂閱管理管家。"
+        )
+
+    elif data_type == "expense":
+        return (
+            "💰 已辨識為消費資料。\n\n"
+            f"📅 日期：{data.get('date')}\n"
+            f"📂 分類：{data.get('category')}\n"
+            f"💵 金額：NT${data.get('amount')}\n"
+            f"📝 項目：{data.get('item')}\n\n"
+            "🚧 Day 12 正在整合 Google Sheets..."
+        )
+
+    elif data_type == "subscription":
+        return (
+            "🔔 已辨識為訂閱資料。\n\n"
+            f"📌 服務：{data.get('name')}\n"
+            f"💰 金額：NT${data.get('amount')}\n"
+            f"🔄 扣款週期：{data.get('billing_cycle')}\n"
+            f"📅 下次扣款：{data.get('next_billing_date')}\n\n"
+            "🚧 Day 12 正在整合 Google Sheets..."
+        )
+
+    elif data_type == "query":
+        return (
+            "🔎 已辨識為資料查詢。\n\n"
+            f"📊 查詢目標：{data.get('target')}\n"
+            f"📅 查詢期間：{data.get('period')}\n"
+            f"🔍 關鍵字：{data.get('keyword')}\n\n"
+            "🚧 Day 12 正在整合查詢服務..."
+        )
+
+    else:
+        return "⚠️ SubWise 暫時無法判斷你的需求。"
+
+
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
 
     # 取得使用者輸入
-    text = event.message.text
+    text = event.message.text.strip()
 
-    # 交給 Command Router 處理
-    reply_text = process_command(text)
+    print(f"📩 LINE 收到訊息：{text}")
 
+    # 固定指令
+    fixed_commands = [
+        "hi",
+        "hello",
+        "你好",
+        "哈囉",
+        "help",
+        "menu",
+        "about",
+        "ping"
+    ]
+
+    # 判斷訊息要走固定指令還是 Gemini
+    if text.lower() in fixed_commands:
+        print("📌 使用固定指令處理")
+        reply_text = process_command(text)
+
+    else:
+        print("🤖 交給 Gemini AI 處理")
+        reply_text = process_ai_message(text)
+
+    # 回覆 LINE
     with ApiClient(configuration) as api_client:
 
         line_bot_api = MessagingApi(api_client)
