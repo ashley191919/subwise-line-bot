@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 import os
 from dotenv import load_dotenv
 from gemini_client import ask_gemini
+from expense_service import save_expense
 
 from linebot.v3 import WebhookHandler
 from linebot.v3.messaging import (
@@ -107,14 +108,27 @@ def process_ai_message(text):
         )
 
     elif data_type == "expense":
-        return (
-            "💰 已辨識為消費資料。\n\n"
-            f"📅 日期：{data.get('date')}\n"
-            f"📂 分類：{data.get('category')}\n"
-            f"💵 金額：NT${data.get('amount')}\n"
-            f"📝 項目：{data.get('item')}\n\n"
-            "🚧 Day 12 正在整合 Google Sheets..."
-        )
+
+        print("💰 Gemini 已辨識為消費資料")
+        print("📝 開始寫入 Google Sheets...")
+
+        success = save_expense(data)
+
+        if success:
+            return (
+                "✅ 記帳成功！\n\n"
+                f"📅 日期：{data.get('date')}\n"
+                f"📂 分類：{data.get('category')}\n"
+                f"💵 金額：NT${data.get('amount')}\n"
+                f"📝 項目：{data.get('item')}"
+            )
+
+        else:
+            return (
+                "❌ 記帳失敗\n\n"
+                "⚠️ 消費資料沒有成功寫入 Google Sheets，"
+                "請稍後再試。"
+            )
 
     elif data_type == "subscription":
         return (
