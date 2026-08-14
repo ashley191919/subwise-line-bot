@@ -1,4 +1,6 @@
 from google_sheets import get_worksheet
+from datetime import date
+from calendar import monthrange
 
 
 def save_subscription(data):
@@ -19,6 +21,8 @@ def save_subscription(data):
     amount = data.get("amount")
     billing_cycle = data.get("billing_cycle")
     next_billing_date = data.get("next_billing_date")
+    category = data.get("category") or "Subscription"
+    note = data.get("note") or ""
 
     # =========================
     # 1. 檢查必要欄位
@@ -32,13 +36,45 @@ def save_subscription(data):
         print("⚠️ 缺少訂閱金額")
         return False
 
-    if not billing_cycle:
-        print("⚠️ 缺少扣款週期")
-        return False
-
     if not next_billing_date:
-        print("⚠️ 缺少下次扣款日期")
-        return False
+
+        today = date.today()
+
+        if billing_cycle == "monthly":
+
+            if today.month == 12:
+                next_year = today.year + 1
+                next_month = 1
+            else:
+                next_year = today.year
+                next_month = today.month + 1
+
+            last_day = monthrange(
+                next_year,
+                next_month
+            )[1]
+
+            next_day = min(
+                today.day,
+                last_day
+            )
+
+            next_billing_date = date(
+                next_year,
+                next_month,
+                next_day
+            ).isoformat()
+
+            data["next_billing_date"] = next_billing_date
+
+            print(
+                f"📅 未提供扣款日期，"
+                f"預設下一次扣款日：{next_billing_date}"
+            )
+
+        else:
+            print("⚠️ 缺少下次扣款日期")
+            return False
 
     # =========================
     # 2. 檢查金額格式
@@ -87,20 +123,27 @@ def save_subscription(data):
         if existing_row:
 
             worksheet.update(
-                f"A{existing_row}:E{existing_row}",
-                [[
-                    name,
-                    amount,
-                    billing_cycle,
-                    next_billing_date,
-                    "Active"
-                ]]
-            )
+            f"A{existing_row}:G{existing_row}",
+            [[
+                name,
+                amount,
+                billing_cycle,
+                next_billing_date,
+                "Active",
+                category,
+                note
+            ]]
+        )
 
             print(f"🔄 發現既有訂閱：{name}")
             print(f"✅ 已更新第 {existing_row} 列資料")
 
-            return True
+            data["next_billing_date"] = next_billing_date
+            data["amount"] = amount
+            data["category"] = category
+            data["note"] = note
+
+            return data
 
         # =========================
         # 6. 不存在 → 新增
@@ -111,13 +154,20 @@ def save_subscription(data):
             amount,
             billing_cycle,
             next_billing_date,
-            "Active"
+            "Active",
+            category,
+            note
         ])
 
         print(f"🆕 新增訂閱：{name}")
         print("✅ 訂閱資料已寫入 Google Sheets")
 
-        return True
+        data["next_billing_date"] = next_billing_date
+        data["amount"] = amount
+        data["category"] = category
+        data["note"] = note
+
+        return data
 
     except Exception as e:
 

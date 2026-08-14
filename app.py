@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from gemini_client import ask_gemini
 from expense_service import save_expense
 from query_service import query_data
+from subscription_service import save_subscription
 
 from linebot.v3 import WebhookHandler
 from linebot.v3.messaging import (
@@ -132,14 +133,30 @@ def process_ai_message(text):
             )
 
     elif data_type == "subscription":
-        return (
-            "🔔 已辨識為訂閱資料。\n\n"
-            f"📌 服務：{data.get('name')}\n"
-            f"💰 金額：NT${data.get('amount')}\n"
-            f"🔄 扣款週期：{data.get('billing_cycle')}\n"
-            f"📅 下次扣款：{data.get('next_billing_date')}\n\n"
-            "🚧 Day 12 正在整合 Google Sheets..."
-        )
+
+        print("🔔 Gemini 已辨識為訂閱資料")
+        print("📝 開始寫入 Subscription Google Sheets...")
+
+        result = save_subscription(data)
+
+        if result:
+
+            print("✅ 訂閱資料已成功寫入 Google Sheets")
+
+            return (
+                "✅ 訂閱建立成功！\n\n"
+                f"📌 服務：{result.get('name')}\n"
+                f"💰 金額：NT${result.get('amount')}\n"
+                f"🔄 扣款週期：{result.get('billing_cycle')}\n"
+                f"📅 下次扣款：{result.get('next_billing_date')}"
+            )
+
+        else:
+
+            return (
+                "❌ 訂閱建立失敗\n\n"
+                "⚠️ 訂閱資料沒有成功寫入 Google Sheets，請稍後再試。"
+            )
 
     elif data_type == "query":
 
