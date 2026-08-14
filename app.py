@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from gemini_client import ask_gemini
 from expense_service import save_expense
+from query_service import query_data
 
 from linebot.v3 import WebhookHandler
 from linebot.v3.messaging import (
@@ -141,13 +142,26 @@ def process_ai_message(text):
         )
 
     elif data_type == "query":
-        return (
-            "🔎 已辨識為資料查詢。\n\n"
-            f"📊 查詢目標：{data.get('target')}\n"
-            f"📅 查詢期間：{data.get('period')}\n"
-            f"🔍 關鍵字：{data.get('keyword')}\n\n"
-            "🚧 Day 12 正在整合查詢服務..."
-        )
+
+        print("🔎 Gemini 已辨識為資料查詢")
+        print("📊 開始透過 query_service 查詢 Google Sheets...")
+
+        try:
+            result = query_data(data)
+
+            print("✅ Google Sheets 查詢完成")
+            print(f"📦 查詢結果：{result}")
+
+            return result
+
+        except Exception as e:
+            print(f"❌ Google Sheets 查詢失敗：{e}")
+
+            return (
+                "❌ 查詢失敗\n\n"
+                "⚠️ 目前無法取得 Google Sheets 的資料，"
+                "請稍後再試。"
+            )
 
     else:
         return "⚠️ SubWise 暫時無法判斷你的需求。"

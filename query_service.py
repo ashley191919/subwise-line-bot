@@ -25,8 +25,11 @@ def filter_expenses(records, period="all"):
         start_date = today.replace(day=1)
         end_date = today
 
-    else:
+    elif period == "all":
         return records
+
+    else:
+        return []
 
     filtered = []
 

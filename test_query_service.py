@@ -1,19 +1,29 @@
-from google_sheets import query_data
+from query_service import query_data
 
 
-print("🔎 SubWise Google Sheets Query Service")
+print("🧪 SubWise Query Service 測試")
 print("=" * 50)
 
+test_data = {
+    "type": "query",
+    "target": "expense",
+    "period": "month",
+    "keyword": None,
+}
 
-print("\n📊 消費資料")
-expenses = query_data("expense")
+print("\n📦 測試 Query JSON：")
+print(test_data)
 
-for expense in expenses:
-    print(expense)
+print("\n🔎 開始查詢 Google Sheets...")
 
+try:
+    result = query_data(test_data)
 
-print("\n🔔 訂閱資料")
-subscriptions = query_data("subscription")
+    print("\n📌 查詢結果：")
+    print(result)
 
-for subscription in subscriptions:
-    print(subscription)
+    print("\n✅ Query Service 測試完成")
+
+except Exception as e:
+    print("\n❌ Query Service 測試失敗")
+    print(f"錯誤：{e}")
