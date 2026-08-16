@@ -5,6 +5,11 @@ from gemini_client import ask_gemini
 from expense_service import save_expense
 from query_service import query_data
 from subscription_service import save_subscription
+from analysis_service import (
+    get_expense_analysis,
+    format_analysis_result,
+    generate_spending_insight
+)
 
 from linebot.v3 import WebhookHandler
 from linebot.v3.messaging import (
@@ -177,6 +182,41 @@ def process_ai_message(text):
             return (
                 "❌ 查詢失敗\n\n"
                 "⚠️ 目前無法取得 Google Sheets 的資料，"
+                "請稍後再試。"
+            )
+
+    elif data_type == "analysis":
+
+        print("📊 Gemini 已辨識為消費分析")
+        print("📈 開始透過 analysis_service 分析 Google Sheets...")
+
+        try:
+            period = data.get("period", "month")
+
+            # 1. 取得消費分析資料
+            analysis = get_expense_analysis(period)
+
+            print("✅ Google Sheets 分析完成")
+            print(f"📦 分析資料：{analysis}")
+
+            # 2. 整理成 LINE 可閱讀格式
+            message = format_analysis_result(analysis)
+
+            # 3. 產生智慧消費提醒
+            insight = generate_spending_insight(analysis)
+
+            # 4. 合併回覆
+            return (
+                f"{message}\n\n"
+                f"{insight}"
+            )
+
+        except Exception as e:
+            print(f"❌ Google Sheets 分析失敗：{e}")
+
+            return (
+                "❌ 分析失敗\n\n"
+                "⚠️ 目前無法取得消費分析資料，"
                 "請稍後再試。"
             )
 

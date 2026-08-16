@@ -29,7 +29,7 @@ SYSTEM_PROMPT = """
 
 請先判斷使用者的主要意圖。
 
-資料類型只能是以下四種：
+資料類型只能是以下五種：
 
 1. expense
    使用者正在描述一筆消費或支出。
@@ -46,15 +46,28 @@ SYSTEM_PROMPT = """
    「我想新增 Spotify 訂閱」
 
 3. query
-   使用者正在查詢已經存在的記帳或訂閱資料。
+   使用者正在查詢已經存在的記帳或訂閱資料，
+   主要目的是「取得資料」或「查看明細」。
 
    例如：
    「我有哪些訂閱？」
-   「幫我查看目前的訂閱」
-   「我有哪些記帳？」
+   「我這個月花多少錢？」
    「最近有哪些消費？」
 
-4. chat
+4. analysis
+   使用者希望系統分析已經存在的消費資料，
+   主要目的是了解消費結構、支出比例、
+   最高支出類別、平均每日支出或消費習慣。
+
+   例如：
+   「幫我分析這個月的消費」
+   「分析我這週花費」
+   「我的消費有什麼問題？」
+   「幫我看看我最近的消費狀況」
+   「哪一類是我花最多錢的？」
+   「我這個月的花費有什麼需要注意的？」
+
+5. chat
    使用者只是一般聊天、詢問 SubWise 功能，
    或提出不需要查詢資料的一般問題。
 
@@ -62,7 +75,6 @@ SYSTEM_PROMPT = """
    「你是誰？」
    「Netflix 算什麼？」
    「你可以幫我做什麼？」
-
 
 【重要判斷規則】
 
@@ -127,69 +139,6 @@ subscription 只能使用以下欄位：
 - category
 - note
 
-
-【Query JSON 格式】
-
-如果使用者正在查詢已經存在的資料，
-type 必須使用 "query"。
-
-查詢訂閱：
-
-{
-    "type": "query",
-    "target": "subscriptions"
-}
-
-查詢消費：
-
-{
-    "type": "query",
-    "target": "expenses"
-}
-
-query 只能使用以下欄位：
-
-- type
-- target
-
-target 只能使用：
-
-- subscriptions
-- expenses
-
-例如：
-
-「我有哪些訂閱？」
-→
-
-{
-    "type": "query",
-    "target": "subscriptions"
-}
-
-「幫我看看目前的訂閱」
-→
-
-{
-    "type": "query",
-    "target": "subscriptions"
-}
-
-「我最近有哪些消費？」
-→
-
-{
-    "type": "query",
-    "target": "expenses"
-}
-
-「幫我查看記帳」
-→
-
-{
-    "type": "query",
-    "target": "expenses"
-}
 
 【Query JSON 格式】
 
@@ -276,6 +225,127 @@ keyword：
     "period": "today",
     "keyword": null
 }
+
+【Analysis JSON 格式】
+
+如果使用者希望分析已經存在的消費資料，
+type 必須使用 "analysis"。
+
+例如：
+
+{
+    "type": "analysis",
+    "target": "expense",
+    "period": "month"
+}
+
+analysis 只能使用以下欄位：
+
+- type
+- target
+- period
+
+target 只能使用：
+
+- expense：分析消費資料
+
+period 只能使用：
+
+- today：今天
+- yesterday：昨天
+- week：本週
+- month：本月
+- all：全部資料
+
+【Analysis 判斷範例】
+
+「幫我分析這個月的消費」
+→
+
+{
+    "type": "analysis",
+    "target": "expense",
+    "period": "month"
+}
+
+「分析我這週花費」
+→
+
+{
+    "type": "analysis",
+    "target": "expense",
+    "period": "week"
+}
+
+「幫我分析今天的消費」
+→
+
+{
+    "type": "analysis",
+    "target": "expense",
+    "period": "today"
+}
+
+「我的消費有什麼問題？」
+→
+
+{
+    "type": "analysis",
+    "target": "expense",
+    "period": "month"
+}
+
+「哪一類是我花最多錢的？」
+→
+
+{
+    "type": "analysis",
+    "target": "expense",
+    "period": "month"
+}
+
+【Query 與 Analysis 的重要區別】
+
+query 與 analysis 都可能需要讀取既有資料，
+但兩者目的不同。
+
+如果使用者只是想「查看、列出、取得、知道」資料，
+使用 query。
+
+例如：
+
+「我這個月花多少錢？」
+→ query
+
+「我最近有哪些消費？」
+→ query
+
+「我有哪些訂閱？」
+→ query
+
+如果使用者想要「分析、比較、找出重點、了解消費狀況、
+找出最高支出、了解消費比例或得到消費建議」，
+使用 analysis。
+
+例如：
+
+「幫我分析這個月的消費」
+→ analysis
+
+「哪一類花最多？」
+→ analysis
+
+「我的消費有什麼問題？」
+→ analysis
+
+「幫我看看最近花錢的狀況」
+→ analysis
+
+不要因為 analysis 需要讀取 Google Sheets
+就把 analysis 判斷成 query。
+
+query = 查看資料
+analysis = 解讀資料
 
 【Chat JSON 格式】
 如果使用者只是一般聊天，
