@@ -1,6 +1,6 @@
 from google_sheets import get_expenses
 from query_service import filter_expenses, calculate_expense_total
-from datetime import date
+from datetime import date, timedelta
 
 
 def calculate_category_totals(records):
@@ -95,6 +95,145 @@ def calculate_daily_average(total, period):
 
     return total / days
 
+def get_previous_month_range():
+    """
+    取得上個月的開始日期與結束日期。
+    """
+
+    today = date.today()
+
+    # 如果現在是 1 月
+    if today.month == 1:
+        previous_year = today.year - 1
+        previous_month = 12
+
+    else:
+        previous_year = today.year
+        previous_month = today.month - 1
+
+    # 上個月第一天
+    start_date = date(
+        previous_year,
+        previous_month,
+        1
+    )
+
+    # 本月第一天
+    current_month_start = date(
+        today.year,
+        today.month,
+        1
+    )
+
+    # 本月第一天往前一天 = 上個月最後一天
+    end_date = current_month_start - timedelta(days=1)
+
+    return start_date, end_date
+
+def compare_monthly_expenses():
+    """
+    比較本月與上個月的消費總額。
+    """
+
+    records = get_expenses()
+
+    today = date.today()
+
+    # =========================
+    # 本月
+    # =========================
+
+    current_month_start = today.replace(day=1)
+
+    current_month_records = []
+
+    for record in records:
+
+        record_date = record.get("Date")
+
+        if not record_date:
+            continue
+
+        try:
+            record_date = date.fromisoformat(
+                str(record_date)
+            )
+        except ValueError:
+            continue
+
+        if current_month_start <= record_date <= today:
+            current_month_records.append(record)
+
+    current_total = calculate_expense_total(
+        current_month_records
+    )
+
+    # =========================
+    # 上個月
+    # =========================
+
+    previous_month_start, previous_month_end = (
+        get_previous_month_range()
+    )
+
+    previous_month_records = []
+
+    for record in records:
+
+        record_date = record.get("Date")
+
+        if not record_date:
+            continue
+
+        try:
+            record_date = date.fromisoformat(
+                str(record_date)
+            )
+        except ValueError:
+            continue
+
+        if (
+            previous_month_start
+            <= record_date
+            <= previous_month_end
+        ):
+            previous_month_records.append(record)
+
+    previous_total = calculate_expense_total(
+        previous_month_records
+    )
+
+    # =========================
+    # 計算差額
+    # =========================
+
+    difference = (
+        current_total
+        - previous_total
+    )
+
+    # =========================
+    # 計算變化百分比
+    # =========================
+
+    if previous_total > 0:
+
+        change_percentage = (
+            difference
+            / previous_total
+            * 100
+        )
+
+    else:
+        change_percentage = 0
+
+    return {
+        "current_month_total": current_total,
+        "previous_month_total": previous_total,
+        "difference": difference,
+        "change_percentage": change_percentage
+    }
+
 def get_expense_analysis(period="month"):
     """
     取得指定期間的消費分析資料。
@@ -134,6 +273,8 @@ def get_expense_analysis(period="month"):
         period
     )
 
+    monthly_comparison = compare_monthly_expenses()
+
     return {
         "period": period,
         "total": total,
@@ -143,8 +284,45 @@ def get_expense_analysis(period="month"):
         "top_amount": top_amount,
         "top_percentage": top_percentage,
         "daily_average": daily_average,
+        "monthly_comparison": monthly_comparison,
         "records": records
     }
+
+def analyze_expenses(data):
+    """
+    根據 Gemini 回傳的分析 JSON，
+    執行消費分析並產生 LINE 回覆。
+    """
+
+    period = data.get(
+        "period",
+        "month"
+    )
+
+    print(f"📅 分析期間：{period}")
+
+    result = get_expense_analysis(
+        period
+    )
+
+    print(f"📊 分析資料：{result}")
+
+    analysis_text = format_analysis_result(
+        result
+    )
+
+    insight_text = generate_spending_insight(
+        result
+    )
+
+    # 移除 generate_spending_insight()
+    # 自己帶出的標題，避免標題重複
+
+    return (
+        f"{analysis_text}\n\n"
+        f"💡 智慧消費提醒\n"
+        f"{insight_text}"
+    )
 
 def format_analysis_result(result):
     """
@@ -180,6 +358,10 @@ def format_analysis_result(result):
     top_percentage = result.get(
         "top_percentage",
         0
+    )
+
+    monthly_comparison = result.get(
+        "monthly_comparison"
     )
 
     lines = [
@@ -219,6 +401,17 @@ def format_analysis_result(result):
             f"({percentage:.1f}%)"
         )
 
+    if monthly_comparison:
+
+        comparison_text = format_monthly_comparison(
+            monthly_comparison
+        )
+
+        lines.extend([
+            "",
+            comparison_text
+        ])
+
     return "\n".join(lines)
 
 def generate_spending_insight(result):
@@ -238,7 +431,6 @@ def generate_spending_insight(result):
 
     if top_percentage >= 80:
         return (
-            f"💡 消費提醒\n"
             f"{top_category} 類別占本月支出的 "
             f"{top_percentage:.1f}%，"
             f"是目前最主要的消費來源。"
@@ -246,14 +438,115 @@ def generate_spending_insight(result):
 
     if top_percentage >= 50:
         return (
-            f"💡 消費提醒\n"
             f"{top_category} 類別占本月支出的 "
             f"{top_percentage:.1f}%，"
             f"目前是你的主要支出類別。"
         )
 
     return (
-        f"💡 消費提醒\n"
         f"目前最高支出類別為 {top_category}，"
         f"占本月支出的 {top_percentage:.1f}%。"
     )
+
+def format_monthly_comparison(result):
+    """
+    將本月與上月消費比較結果整理成 LINE 可閱讀的文字。
+    """
+
+    if not result:
+        return "📭 目前沒有足夠的資料可以進行月份比較。"
+
+    current_total = result.get(
+        "current_month_total",
+        0
+    )
+
+    previous_total = result.get(
+        "previous_month_total",
+        0
+    )
+
+    difference = result.get(
+        "difference",
+        0
+    )
+
+    change_percentage = result.get(
+        "change_percentage",
+        0
+    )
+
+    lines = [
+        "📊 SubWise 月度比較",
+        "",
+        f"📅 本月支出：NT${current_total:.0f}"
+    ]
+
+    # =========================
+    # 上月沒有資料
+    # =========================
+
+    if previous_total <= 0:
+
+        lines.extend([
+            "📅 上月支出：目前沒有資料",
+            "",
+            f"💡 本月已累計 NT${current_total:.0f}，",
+            "目前尚無法與上月進行完整比較。"
+        ])
+
+        return "\n".join(lines)
+
+    # =========================
+    # 上月有資料
+    # =========================
+
+    lines.extend([
+        f"📅 上月支出：NT${previous_total:.0f}",
+        ""
+    ])
+
+    if difference > 0:
+
+        lines.append(
+            f"📈 比上月增加：NT${difference:.0f}"
+        )
+
+        lines.append(
+            f"📊 變化幅度：+{change_percentage:.1f}%"
+        )
+
+        lines.extend([
+            "",
+            (
+                f"💡 本月支出比上月增加 "
+                f"{change_percentage:.1f}%。"
+            )
+        ])
+
+    elif difference < 0:
+
+        lines.append(
+            f"📉 比上月減少：NT${abs(difference):.0f}"
+        )
+
+        lines.append(
+            f"📊 變化幅度：{change_percentage:.1f}%"
+        )
+
+        lines.extend([
+            "",
+            (
+                f"💡 本月支出比上月下降 "
+                f"{abs(change_percentage):.1f}%。"
+            )
+        ])
+
+    else:
+
+        lines.extend([
+            "➡️ 與上月支出相同",
+            "📊 變化幅度：0.0%"
+        ])
+
+    return "\n".join(lines)
