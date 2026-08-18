@@ -68,6 +68,53 @@ def get_top_category(category_totals):
 
     return top_category, top_amount
 
+def calculate_daily_totals(records):
+    """
+    計算每天的消費總金額。
+    """
+
+    daily_totals = {}
+
+    for record in records:
+
+        record_date = record.get("Date")
+
+        if not record_date:
+            continue
+
+        record_date = str(record_date).strip()
+
+        amount = record.get("Amount", 0)
+
+        try:
+            amount = float(amount)
+        except (ValueError, TypeError):
+            continue
+
+        daily_totals[record_date] = (
+            daily_totals.get(record_date, 0) + amount
+        )
+
+    return daily_totals
+
+def get_highest_expense_day(daily_totals):
+    """
+    找出消費金額最高的一天。
+    """
+
+    if not daily_totals:
+        return None
+
+    highest_date = max(
+        daily_totals,
+        key=daily_totals.get
+    )
+
+    return {
+        "date": highest_date,
+        "amount": daily_totals[highest_date]
+    }
+
 def get_highest_expense(records):
     """
     找出指定期間內金額最高的單筆消費。
@@ -288,6 +335,14 @@ def get_expense_analysis(period="month"):
         category_totals
     )
 
+    daily_totals = calculate_daily_totals(
+        records
+    )
+
+    highest_expense_day = get_highest_expense_day(
+        daily_totals
+    )
+
     highest_expense = get_highest_expense(
         records
     )
@@ -322,6 +377,8 @@ def get_expense_analysis(period="month"):
         "daily_average": daily_average,
         "expense_count": expense_count,
         "highest_expense": highest_expense,
+        "daily_totals": daily_totals,
+        "highest_expense_day": highest_expense_day,
         "monthly_comparison": monthly_comparison,
         "records": records
     }
@@ -407,6 +464,10 @@ def format_analysis_result(result):
         "highest_expense"
     )
 
+    highest_expense_day = result.get(
+        "highest_expense_day"
+    )
+
     monthly_comparison = result.get(
         "monthly_comparison"
     )
@@ -476,6 +537,41 @@ def format_analysis_result(result):
                 f"• NT${highest_amount:.0f}"
                 f"｜{highest_category}"
             )
+
+    else:
+
+        lines.append(
+            "• 目前沒有消費資料"
+        )
+
+    lines.extend([
+        "",
+        "🔥 最高單日消費："
+    ])
+
+    if highest_expense_day:
+
+        highest_day_date = highest_expense_day.get(
+            "date",
+            ""
+        )
+
+        highest_day_amount = highest_expense_day.get(
+            "amount",
+            0
+        )
+
+        try:
+            highest_day_amount = float(
+                highest_day_amount
+            )
+        except (ValueError, TypeError):
+            highest_day_amount = 0
+
+        lines.append(
+            f"• {highest_day_date}："
+            f"NT${highest_day_amount:.0f}"
+        )
 
     else:
 
