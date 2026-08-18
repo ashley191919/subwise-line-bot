@@ -68,6 +68,33 @@ def get_top_category(category_totals):
 
     return top_category, top_amount
 
+def get_highest_expense(records):
+    """
+    找出指定期間內金額最高的單筆消費。
+    """
+
+    if not records:
+        return None
+
+    highest_expense = None
+    highest_amount = 0
+
+    for record in records:
+
+        amount = record.get("Amount", 0)
+
+        try:
+            amount = float(amount)
+        except (ValueError, TypeError):
+            continue
+
+        if amount > highest_amount:
+
+            highest_amount = amount
+            highest_expense = record
+
+    return highest_expense
+
 def calculate_daily_average(total, period):
     """
     計算指定期間的平均每日支出。
@@ -261,6 +288,10 @@ def get_expense_analysis(period="month"):
         category_totals
     )
 
+    highest_expense = get_highest_expense(
+        records
+    )
+
     top_percentage = 0
 
     if total > 0:
@@ -273,7 +304,12 @@ def get_expense_analysis(period="month"):
         period
     )
 
-    monthly_comparison = compare_monthly_expenses()
+    expense_count = len(records)
+
+    monthly_comparison = None
+
+    if period == "month":
+        monthly_comparison = compare_monthly_expenses()
 
     return {
         "period": period,
@@ -284,6 +320,8 @@ def get_expense_analysis(period="month"):
         "top_amount": top_amount,
         "top_percentage": top_percentage,
         "daily_average": daily_average,
+        "expense_count": expense_count,
+        "highest_expense": highest_expense,
         "monthly_comparison": monthly_comparison,
         "records": records
     }
@@ -315,8 +353,6 @@ def analyze_expenses(data):
         result
     )
 
-    # 移除 generate_spending_insight()
-    # 自己帶出的標題，避免標題重複
 
     return (
         f"{analysis_text}\n\n"
@@ -334,7 +370,14 @@ def format_analysis_result(result):
 
     period = result.get("period", "month")
     total = result.get("total", 0)
-    daily_average = result.get("daily_average", 0)
+    daily_average = result.get(
+        "daily_average",
+        0
+    )
+    expense_count = result.get(
+        "expense_count",
+        0
+    )
 
     category_totals = result.get(
         "category_totals",
@@ -360,6 +403,10 @@ def format_analysis_result(result):
         0
     )
 
+    highest_expense = result.get(
+        "highest_expense"
+    )
+
     monthly_comparison = result.get(
         "monthly_comparison"
     )
@@ -369,6 +416,7 @@ def format_analysis_result(result):
         "",
         f"📅 分析期間：{period}",
         f"💵 總支出：NT${total:.0f}",
+        f"🧾 消費筆數：{expense_count} 筆",
         f"📊 平均每日：NT${daily_average:.0f}",
         "",
         "🔥 最高支出類別："
@@ -383,25 +431,86 @@ def format_analysis_result(result):
     else:
         lines.append("• 目前沒有消費資料")
 
+
+    lines.extend([
+        "",
+        "💳 最高單筆消費："
+    ])
+
+
+    if highest_expense:
+
+        highest_amount = highest_expense.get(
+            "Amount",
+            0
+        )
+
+        highest_category = highest_expense.get(
+            "Category",
+            "Other"
+        )
+
+        highest_note = highest_expense.get(
+            "Note",
+            ""
+        )
+
+        try:
+            highest_amount = float(
+                highest_amount
+            )
+        except (ValueError, TypeError):
+            highest_amount = 0
+
+        if highest_note:
+
+            lines.append(
+                f"• NT${highest_amount:.0f}"
+                f"｜{highest_category}"
+                f"｜{highest_note}"
+            )
+
+        else:
+
+            lines.append(
+                f"• NT${highest_amount:.0f}"
+                f"｜{highest_category}"
+            )
+
+    else:
+
+        lines.append(
+            "• 目前沒有消費資料"
+        )
+
+
     lines.extend([
         "",
         "📂 分類支出："
     ])
 
-    for category, amount in category_totals.items():
+    if category_totals:
 
-        percentage = category_percentages.get(
-            category,
-            0
-        )
+        for category, amount in category_totals.items():
+
+            percentage = category_percentages.get(
+                category,
+                0
+            )
+
+            lines.append(
+                f"• {category}："
+                f"NT${amount:.0f} "
+                f"({percentage:.1f}%)"
+            )
+
+    else:
 
         lines.append(
-            f"• {category}："
-            f"NT${amount:.0f} "
-            f"({percentage:.1f}%)"
+            "• 目前沒有消費資料"
         )
 
-    if monthly_comparison:
+    if period == "month" and monthly_comparison:
 
         comparison_text = format_monthly_comparison(
             monthly_comparison
@@ -425,27 +534,43 @@ def generate_spending_insight(result):
     total = result.get("total", 0)
     top_category = result.get("top_category")
     top_percentage = result.get("top_percentage", 0)
+    period = result.get("period", "month")
+
+    if period == "today":
+        period_text = "今天"
+
+    elif period == "yesterday":
+        period_text = "昨天"
+
+    elif period == "week":
+        period_text = "本週"
+
+    elif period == "month":
+        period_text = "本月"
+
+    else:
+        period_text = "目前期間"
 
     if total <= 0 or not top_category:
         return "💡 目前沒有足夠的消費資料可以分析。"
 
     if top_percentage >= 80:
         return (
-            f"{top_category} 類別占本月支出的 "
+            f"{top_category} 類別占{period_text}支出的 "
             f"{top_percentage:.1f}%，"
             f"是目前最主要的消費來源。"
         )
 
     if top_percentage >= 50:
         return (
-            f"{top_category} 類別占本月支出的 "
+            f"{top_category} 類別占{period_text}支出的 "
             f"{top_percentage:.1f}%，"
             f"目前是你的主要支出類別。"
         )
 
     return (
         f"目前最高支出類別為 {top_category}，"
-        f"占本月支出的 {top_percentage:.1f}%。"
+        f"占{period_text}支出的 {top_percentage:.1f}%。"
     )
 
 def format_monthly_comparison(result):
