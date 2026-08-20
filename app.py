@@ -10,6 +10,7 @@ from analysis_service import (
     format_analysis_result,
     generate_spending_insight
 )
+from menu_service import get_main_menu
 
 from linebot.v3 import WebhookHandler
 from linebot.v3.messaging import (
@@ -18,6 +19,9 @@ from linebot.v3.messaging import (
     MessagingApi,
     ReplyMessageRequest,
     TextMessage,
+    QuickReply,
+    QuickReplyItem,
+    MessageAction,
 )
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 from linebot.v3.exceptions import InvalidSignatureError
@@ -51,8 +55,151 @@ def callback():
 
     return "OK"
 
+def create_analysis_quick_reply():
+    """
+    建立消費分析的 LINE Quick Reply。
+    """
+
+    return QuickReply(
+        items=[
+            QuickReplyItem(
+                action=MessageAction(
+                    label="📅 今天",
+                    text="今天"
+                )
+            ),
+            QuickReplyItem(
+                action=MessageAction(
+                    label="📆 本週",
+                    text="本週"
+                )
+            ),
+            QuickReplyItem(
+                action=MessageAction(
+                    label="🗓️ 本月",
+                    text="本月"
+                )
+            )
+        ]
+    )
+
+def process_feature_command(text):
+    """
+    處理主選單中的功能入口。
+    """
+
+    text = text.lower().strip()
+
+    if text in ["記帳", "帳目", "新增記帳"]:
+        return (
+            "💰 SubWise 記帳\n\n"
+            "直接告訴我你花了多少錢，例如：\n\n"
+            "「午餐 120 元」\n"
+            "「今天搭捷運 50 元」\n\n"
+            "🤖 我會幫你自動整理消費資訊。"
+        )
+
+    elif text in ["分析", "消費分析", "支出分析"]:
+        return (
+            "📊 SubWise 消費分析\n\n"
+            "請選擇你想分析的期間：\n\n"
+            "📅 今天\n"
+            "📆 本週\n"
+            "🗓️ 本月\n\n"
+            "你也可以直接輸入：\n"
+            "「今天」\n"
+            "「本週」\n"
+            "「本月」"
+        )
+
+    elif text in ["發票", "發票辨識", "收據", "收據辨識"]:
+        return (
+            "📷 SubWise 發票辨識\n\n"
+            "直接傳送發票或收據照片給我，\n"
+            "我會協助辨識其中的消費資訊。\n\n"
+            "🚧 多模態辨識功能開發中"
+        )
+
+    elif text in ["訂閱", "訂閱管理", "訂閱服務"]:
+        return (
+            "🔔 SubWise 訂閱管理\n\n"
+            "你可以管理 Netflix、Spotify、YouTube Premium\n"
+            "等週期性訂閱服務。\n\n"
+            "🚧 訂閱管理功能開發中"
+        )
+
+    elif text in ["今天", "今日"]:
+        return process_analysis_period("today")
+
+    elif text in ["本週", "這週", "這周"]:
+        return process_analysis_period("week")
+
+    elif text in ["本月", "這個月"]:
+        return process_analysis_period("month")
+
+    return None
+
+def process_analysis_period(period):
+    """
+    根據指定期間執行消費分析。
+    """
+
+    print(f"📊 快速分析入口：{period}")
+
+    try:
+        # 取得分析資料
+        analysis = get_expense_analysis(period)
+
+        print("✅ 消費分析完成")
+        print(f"📦 分析資料：{analysis}")
+
+        # 整理分析結果
+        message = format_analysis_result(
+            analysis
+        )
+
+        # 產生智慧提醒
+        insight = generate_spending_insight(
+            analysis
+        )
+
+        return (
+            f"{message}\n\n"
+            f"{insight}"
+        )
+
+    except Exception as e:
+
+        print(
+            f"❌ 快速分析失敗：{e}"
+        )
+
+        return (
+            "❌ 分析失敗\n\n"
+            "⚠️ 目前無法取得消費分析資料，"
+            "請稍後再試。"
+        )
+
+def get_quick_reply(text):
+    """
+    根據使用者輸入決定是否顯示 Quick Reply。
+    """
+
+    text = text.lower().strip()
+
+    if text in ["分析", "消費分析", "支出分析"]:
+        return create_analysis_quick_reply()
+
+    return None
+
 def process_command(text):
     """根據使用者輸入的指令，回傳對應的回覆內容。"""
+
+    feature_reply = process_feature_command(text)
+
+    if feature_reply:
+        return feature_reply
+
     greetings = ["hi", "hello", "你好", "哈囉"]
     if text.lower() in greetings:
         return (
@@ -65,15 +212,8 @@ def process_command(text):
             "更多功能即將登場！"
         )
 
-    elif text.lower() in ["help", "menu"]:
-        return (
-            "📒 SubWise 功能選單\n\n"
-            "🤖 about － 關於 SubWise\n"
-            "🏓 ping － 測試 Bot\n"
-            "💰 記帳（開發中）\n"
-            "📷 發票辨識（開發中）\n"
-            "🔔 訂閱提醒（開發中）"
-        )
+    elif text.lower() in ["help", "menu", "功能", "選單"]:
+        return get_main_menu()
 
     elif text.lower() == "about":
         return (
@@ -241,8 +381,36 @@ def handle_message(event):
         "哈囉",
         "help",
         "menu",
+        "功能",
+        "選單",
         "about",
-        "ping"
+        "ping",
+
+        # 功能入口
+        "記帳",
+        "帳目",
+        "新增記帳",
+
+        "分析",
+        "消費分析",
+        "支出分析",
+
+        "今天",
+        "今日",
+        "本週",
+        "這週",
+        "這周",
+        "本月",
+        "這個月",
+
+        "發票",
+        "發票辨識",
+        "收據",
+        "收據辨識",
+
+        "訂閱",
+        "訂閱管理",
+        "訂閱服務"
     ]
 
     # 判斷訊息要走固定指令還是 Gemini
@@ -255,17 +423,22 @@ def handle_message(event):
         reply_text = process_ai_message(text)
 
     # 回覆 LINE
+    quick_reply = get_quick_reply(text)
+
     with ApiClient(configuration) as api_client:
 
         line_bot_api = MessagingApi(api_client)
+
+        message = TextMessage(
+            text=reply_text,
+            quick_reply=quick_reply
+        )
 
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
                 messages=[
-                    TextMessage(
-                        text=reply_text
-                    )
+                    message
                 ]
             )
         )
