@@ -464,11 +464,9 @@ def handle_image_message(event):
 
             line_bot_api = MessagingApiBlob(api_client)
 
-            response = line_bot_api.get_message_content(
+            image_bytes = line_bot_api.get_message_content(
                 event.message.id
             )
-
-            image_bytes = response.content
 
         print("✅ 成功取得 LINE 圖片")
         print(f"📦 圖片大小：{len(image_bytes)} bytes")
@@ -488,8 +486,29 @@ def handle_image_message(event):
         if not data:
 
             print("❌ Gemini 沒有回傳有效資料")
+
+            with ApiClient(configuration) as api_client:
+
+                line_bot_api = MessagingApi(api_client)
+
+                line_bot_api.reply_message(
+                    ReplyMessageRequest(
+                        reply_token=event.reply_token,
+                        messages=[
+                            TextMessage(
+                                text=(
+                                    "❌ 發票辨識失敗\n\n"
+                                    "⚠️ AI 沒有取得有效的消費資料，"
+                                    "請再試一次。"
+                                )
+                            )
+                        ]
+                    )
+                )
+
             return
 
+        # 4. 如果 Gemini 判斷為 expense
         if data.get("type") == "expense":
 
             print("💰 Gemini 辨識為消費資料")
@@ -500,17 +519,76 @@ def handle_image_message(event):
 
                 print("✅ 發票消費資料已寫入 Google Sheets")
 
+                reply_text = (
+                    "✅ 發票辨識成功，已完成記帳！\n\n"
+                    f"📅 日期：{data.get('date') or '未辨識'}\n"
+                    f"📂 分類：{data.get('category') or '未分類'}\n"
+                    f"💵 金額：NT${data.get('amount') or '未辨識'}\n"
+                    f"📝 項目：{data.get('item') or '未辨識'}"
+                )
+
             else:
 
                 print("❌ 發票消費資料寫入失敗")
+
+                reply_text = (
+                    "⚠️ 發票辨識成功，但記帳失敗。\n\n"
+                    "請稍後再試。"
+                )
 
         else:
 
             print("ℹ️ 圖片不是可建立的消費資料")
 
+            reply_text = (
+                "ℹ️ 這張圖片目前無法建立消費紀錄。\n\n"
+                "請確認你傳送的是發票或收據照片。"
+            )
+
+        # 5. 回覆 LINE
+        with ApiClient(configuration) as api_client:
+
+            line_bot_api = MessagingApi(api_client)
+
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=[
+                        TextMessage(
+                            text=reply_text
+                        )
+                    ]
+                )
+            )
+
     except Exception as e:
 
         print(f"❌ LINE 圖片處理失敗：{e}")
+
+        try:
+
+            with ApiClient(configuration) as api_client:
+
+                line_bot_api = MessagingApi(api_client)
+
+                line_bot_api.reply_message(
+                    ReplyMessageRequest(
+                        reply_token=event.reply_token,
+                        messages=[
+                            TextMessage(
+                                text=(
+                                    "❌ 發票圖片處理失敗\n\n"
+                                    "⚠️ 系統暫時無法處理這張圖片，"
+                                    "請稍後再試。"
+                                )
+                            )
+                        ]
+                    )
+                )
+
+        except Exception as reply_error:
+
+            print(f"❌ LINE 錯誤訊息回覆失敗：{reply_error}")
 
 
 if __name__ == "__main__":
