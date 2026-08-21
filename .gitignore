@@ -3,4 +3,5 @@ venv/
 credentials.json
 __pycache__/
 *.pyc
+receipt.jpg
 .vscode/
