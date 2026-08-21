@@ -1,7 +1,10 @@
 from flask import Flask, jsonify, request
 import os
 from dotenv import load_dotenv
-from gemini_client import ask_gemini
+from gemini_client import (
+    ask_gemini,
+    ask_gemini_with_image
+)
 from expense_service import save_expense
 from query_service import query_data
 from subscription_service import save_subscription
@@ -17,13 +20,18 @@ from linebot.v3.messaging import (
     Configuration,
     ApiClient,
     MessagingApi,
+    MessagingApiBlob,
     ReplyMessageRequest,
     TextMessage,
     QuickReply,
     QuickReplyItem,
     MessageAction,
 )
-from linebot.v3.webhooks import MessageEvent, TextMessageContent
+from linebot.v3.webhooks import (
+    MessageEvent,
+    TextMessageContent,
+    ImageMessageContent
+)
 from linebot.v3.exceptions import InvalidSignatureError
 
 load_dotenv()
@@ -442,6 +450,68 @@ def handle_message(event):
                 ]
             )
         )
+
+@handler.add(MessageEvent, message=ImageMessageContent)
+def handle_image_message(event):
+
+    print("📷 SubWise 收到圖片訊息")
+    print(f"🆔 LINE Message ID：{event.message.id}")
+
+    try:
+
+        # 1. 從 LINE 取得圖片
+        with ApiClient(configuration) as api_client:
+
+            line_bot_api = MessagingApiBlob(api_client)
+
+            response = line_bot_api.get_message_content(
+                event.message.id
+            )
+
+            image_bytes = response.content
+
+        print("✅ 成功取得 LINE 圖片")
+        print(f"📦 圖片大小：{len(image_bytes)} bytes")
+
+        # 2. 將圖片交給 Gemini
+        print("🤖 開始進行 Gemini 圖片辨識...")
+
+        data = ask_gemini_with_image(
+            image_bytes,
+            "image/jpeg"
+        )
+
+        print("📦 Gemini 圖片辨識結果：")
+        print(data)
+
+        # 3. 判斷 Gemini 是否辨識成功
+        if not data:
+
+            print("❌ Gemini 沒有回傳有效資料")
+            return
+
+        if data.get("type") == "expense":
+
+            print("💰 Gemini 辨識為消費資料")
+
+            success = save_expense(data)
+
+            if success:
+
+                print("✅ 發票消費資料已寫入 Google Sheets")
+
+            else:
+
+                print("❌ 發票消費資料寫入失敗")
+
+        else:
+
+            print("ℹ️ 圖片不是可建立的消費資料")
+
+    except Exception as e:
+
+        print(f"❌ LINE 圖片處理失敗：{e}")
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

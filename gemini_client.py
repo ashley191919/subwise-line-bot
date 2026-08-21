@@ -4,6 +4,7 @@ from datetime import date, timedelta
 
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 
 load_dotenv()
 
@@ -529,5 +530,114 @@ def ask_gemini(prompt):
     except Exception as e:
 
         print(f"❌ Gemini API 發生錯誤：{e}")
+
+        return None
+
+def ask_gemini_with_image(image_bytes, mime_type):
+    """
+    傳送圖片給 Gemini，
+    並讓 Gemini 判斷發票／收據中的消費資訊。
+    """
+
+    today = date.today()
+
+    today_text = today.isoformat()
+    yesterday_text = (today - timedelta(days=1)).isoformat()
+    day_before_yesterday_text = (
+        today - timedelta(days=2)
+    ).isoformat()
+
+    image_part = types.Part.from_bytes(
+        data=image_bytes,
+        mime_type=mime_type
+    )
+
+    image_prompt = f"""
+今天的日期是：{today_text}
+昨天的日期是：{yesterday_text}
+前天的日期是：{day_before_yesterday_text}
+
+{SYSTEM_PROMPT}
+
+現在請分析使用者提供的這張圖片。
+
+這張圖片可能是：
+- 發票
+- 收據
+- 電子發票
+- 消費明細
+
+請優先判斷圖片中的消費資訊。
+
+如果可以辨識為一筆消費，
+請輸出：
+
+{{
+    "type": "expense",
+    "category": "Food",
+    "amount": 120,
+    "item": "午餐",
+    "date": "2026-08-20",
+    "note": null
+}}
+
+【圖片辨識規則】
+
+1. 金額必須以圖片中實際看得到的金額為準。
+2. 不可以自行猜測圖片中沒有出現的金額。
+3. 如果無法確定金額，amount 使用 null。
+4. 日期必須使用 YYYY-MM-DD。
+5. 如果圖片沒有日期，date 使用 null。
+6. 如果可以辨識消費品項，填入 item。
+7. 如果無法辨識品項，item 使用 null。
+8. category 只能使用 SYSTEM_PROMPT 指定的分類。
+9. 如果無法確定分類，category 使用 null。
+10. 不要把店家名稱直接當成消費品項。
+11. note 可以補充圖片中值得保留的資訊。
+12. 最後只能輸出合法 JSON。
+13. 不要輸出 Markdown。
+14. 不要輸出 JSON 以外的文字。
+
+如果圖片不是發票、收據或消費資料，
+請輸出：
+
+{{
+    "type": "chat",
+    "message": "這張圖片看起來不是發票或收據，我目前無法從中建立消費紀錄。"
+}}
+"""
+
+    try:
+
+        response = client.models.generate_content(
+            model="gemini-3.6-flash",
+            contents=[
+                image_part,
+                image_prompt
+            ]
+        )
+
+        text = response.text.strip()
+
+        try:
+
+            data = json.loads(text)
+
+            print("🖼️ Gemini 圖片辨識 JSON：")
+            print(data)
+
+            return data
+
+        except json.JSONDecodeError:
+
+            print("⚠️ Gemini 圖片辨識結果不是有效 JSON")
+            print("原始回覆：")
+            print(text)
+
+            return None
+
+    except Exception as e:
+
+        print(f"❌ Gemini 圖片辨識發生錯誤：{e}")
 
         return None
