@@ -513,6 +513,11 @@ def handle_image_message(event):
 
             print("💰 Gemini 辨識為消費資料")
 
+            # Gemini 無法判斷分類時，使用 Other 作為預設分類
+            if not data.get("category"):
+                print("⚠️ Gemini 未辨識消費分類，使用 Other")
+                data["category"] = "Other"
+
             success = save_expense(data)
 
             if success:
