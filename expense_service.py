@@ -35,8 +35,8 @@ def save_expense(data):
         return False
 
     if category is None:
-        print("⚠️ 缺少消費分類")
-        return False
+        print("⚠️ 缺少消費分類，將使用 Other")
+        category = "Other"
 
     # =========================
     # 2. 檢查金額格式

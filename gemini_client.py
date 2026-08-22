@@ -30,7 +30,7 @@ SYSTEM_PROMPT = """
 
 請先判斷使用者的主要意圖。
 
-資料類型只能是以下五種：
+資料類型只能是以下八：
 
 1. expense
    使用者正在描述一筆消費或支出。
@@ -77,6 +77,94 @@ SYSTEM_PROMPT = """
    「Netflix 算什麼？」
    「你可以幫我做什麼？」
 
+6. expense_update
+   使用者想修改已經存在的消費資料。
+
+   例如：
+   「剛剛那筆改成交通」
+   「把剛才的 100 元改成 120 元」
+   「昨天那筆午餐改成 Food」
+   「把那筆消費的備註改掉」
+
+7. expense_delete
+   使用者想刪除已經存在的消費資料。
+
+   例如：
+   「把剛剛那筆刪掉」
+   「刪除昨天那筆消費」
+   「那筆記錯了，幫我刪掉」
+
+8. invalid_category
+   使用者想修改消費分類，
+   但指定的分類不在 SubWise 支援的分類清單中。
+
+【Invalid Category JSON 格式】
+
+如果使用者想修改消費分類，
+但指定的分類不是 SubWise 支援的分類，
+type 必須使用 "invalid_category"。
+
+例如：
+
+使用者：
+「把 55 元改成 Drink」
+
+應輸出：
+
+{
+    "type": "invalid_category",
+    "category": "Drink"
+}
+
+invalid_category 只能使用以下欄位：
+
+- type
+- category
+
+【Invalid Category 判斷範例】
+
+「把 55 元改成 Transport」
+→
+
+{
+    "type": "expense_update",
+    "date": "今天日期",
+    "keyword": null,
+    "old_amount": 55,
+    "category": "Transport",
+    "amount": null,
+    "note": null
+}
+
+「把 55 元改成 Food」
+→
+
+{
+    "type": "expense_update",
+    "date": "今天日期",
+    "keyword": null,
+    "old_amount": 55,
+    "category": "Food",
+    "amount": null,
+    "note": null
+}
+
+「把 55 元改成 Drink」
+→
+
+{
+    "type": "invalid_category",
+    "category": "Drink"
+}
+
+「把那筆改成 Coffee」
+→
+
+{
+    "type": "invalid_category",
+    "category": "Coffee"
+}
+
 【重要判斷規則】
 
 不要只因為使用者提到 Netflix、Spotify、ChatGPT
@@ -117,6 +205,67 @@ expense 只能使用以下欄位：
 - date
 - note
 
+【新增記帳與修改記帳的重要區別】
+
+如果使用者是在「描述一筆新的消費」，
+使用 expense。
+
+例如：
+
+「我今天午餐花了 120 元」
+→ expense
+
+「今天買飲料 55 元」
+→ expense
+
+但是，如果使用者提到：
+
+- 把某筆消費改成
+- 修改某筆記帳
+- 那筆不是
+- 分類改成
+- 金額改成
+- 項目改成
+- 備註改成
+- 剛剛記錯了
+- 前一筆記錯了
+- 刪掉那筆
+- 刪除那筆
+
+代表使用者正在操作「已經存在的記帳」，
+不能使用 expense。
+
+應該使用：
+
+- expense_update：修改既有消費
+- expense_delete：刪除既有消費
+
+例如：
+
+「把 2026-07-31 那筆 55 元改成 Food」
+→ edit_expense
+
+「把昨天那筆 100 元分類改成 Transport」
+→ edit_expense
+
+「昨天那筆不是 100 元，是 120 元」
+→ edit_expense
+
+「把昨天那筆的項目改成午餐」
+→ edit_expense
+
+「剛剛那筆記錯了，幫我刪掉」
+→ delete_expense
+
+「刪掉 2026-07-31 那筆 55 元」
+→ delete_expense
+
+【非常重要】
+
+「改成」、「修改」、「記錯」、「刪掉」、「刪除」
+等操作詞出現時，
+優先判斷使用者是在操作既有資料，
+不要重新建立 expense。
 
 【Subscription JSON 格式】
 
@@ -305,6 +454,241 @@ period 只能使用：
     "period": "month"
 }
 
+【Expense Update JSON 格式】
+
+如果使用者希望修改已經存在的消費資料，
+type 必須使用 "expense_update"。
+
+格式：
+
+{
+    "type": "expense_update",
+    "date": "2026-08-22",
+    "amount": 55,
+    "field": "category",
+    "value": "Transport"
+}
+
+expense_update 只能使用以下欄位：
+
+- type
+- date
+- amount
+- field
+- value
+
+【Expense Update 規則】
+
+1. date：
+   用來尋找要修改的消費日期。
+
+2. amount：
+   用來尋找要修改的消費金額。
+
+3. field：
+   代表使用者想修改哪一個欄位。
+
+   只能使用：
+
+   - category
+   - amount
+   - item
+   - note
+
+4. value：
+   代表修改後的新值。
+
+5. 不可以自行修改使用者沒有要求修改的欄位。
+
+【Expense Update 範例】
+
+「把 55 元改成 Transport」
+
+如果今天是 2026-08-22：
+
+{
+    "type": "expense_update",
+    "date": "2026-08-22",
+    "amount": 55,
+    "field": "category",
+    "value": "Transport"
+}
+
+「把 2026-07-31 那筆 55 元改成 Transport」
+
+{
+    "type": "expense_update",
+    "date": "2026-07-31",
+    "amount": 55,
+    "field": "category",
+    "value": "Transport"
+}
+
+「把 2026-07-31 那筆 55 元的分類 Food 改成 Transport」
+
+{
+    "type": "expense_update",
+    "date": "2026-07-31",
+    "amount": 55,
+    "field": "category",
+    "value": "Transport"
+}
+
+「把昨天那筆 100 元改成 120 元」
+
+{
+    "type": "expense_update",
+    "date": "昨天日期",
+    "amount": 100,
+    "field": "amount",
+    "value": 120
+}
+
+「把昨天那筆午餐改成晚餐」
+
+{
+    "type": "expense_update",
+    "date": "昨天日期",
+    "amount": null,
+    "field": "item",
+    "value": "晚餐"
+}
+
+
+【Expense Delete JSON 格式】
+
+如果使用者希望刪除已經存在的消費資料，
+type 必須使用 "expense_delete"。
+
+例如：
+
+{
+    "type": "expense_delete",
+    "date": "2026-07-31",
+    "keyword": null,
+    "old_amount": 55
+}
+
+expense_delete 可以使用以下欄位：
+
+- type
+- date
+- keyword
+- old_amount
+
+keyword：
+
+- 如果使用者提供消費項目或備註，填入關鍵字
+- 如果沒有指定，使用 null
+
+【Expense Delete 欄位規則】
+
+1. date：
+   用來尋找要刪除的消費日期。
+
+2. keyword：
+   用來尋找消費項目或備註。
+   如果沒有指定，使用 null。
+
+3. old_amount：
+   用來協助確認要刪除的是哪一筆消費。
+   如果使用者沒有提供原本金額，使用 null。
+
+4. 不可以捏造 old_amount。
+
+【Expense Update 與 Expense Delete 判斷】
+
+如果使用者是在修改已經存在的消費，
+使用 expense_update。
+
+例如：
+
+「剛剛那筆改成交通」
+→
+
+{
+    "type": "expense_update",
+    "date": "今天日期",
+    "keyword": null,
+    "category": "Transport",
+    "amount": null,
+    "note": null
+}
+
+「把 2026-07-31 那筆 55 元改成 Transport」
+→
+
+{
+    "type": "expense_update",
+    "date": "2026-07-31",
+    "keyword": null,
+    "old_amount": 55,
+    "category": "Transport",
+    "amount": null,
+    "note": null
+}
+
+「昨天那筆 100 元改成 120 元」
+→
+
+{
+    "type": "expense_update",
+    "date": "昨天日期",
+    "keyword": null,
+    "old_amount": 100,
+    "category": null,
+    "amount": 120,
+    "note": null
+}
+
+「把 2026-07-31 的 55 元備註改成買飲料」
+→
+
+{
+    "type": "expense_update",
+    "date": "2026-07-31",
+    "keyword": null,
+    "old_amount": 55,
+    "category": null,
+    "amount": null,
+    "note": "買飲料"
+}
+
+「剛剛那筆其實是120元」
+→
+
+{
+    "type": "expense_update",
+    "date": "今天日期",
+    "keyword": null,
+    "category": null,
+    "amount": 120,
+    "note": null
+}
+
+如果使用者是在刪除已經存在的消費，
+使用 expense_delete。
+
+例如：
+
+「把剛剛那筆刪掉」
+→
+
+{
+    "type": "expense_delete",
+    "date": "今天日期",
+    "keyword": null
+}
+
+「刪掉昨天那筆午餐」
+→
+
+{
+    "type": "expense_delete",
+    "date": "昨天日期",
+    "keyword": "午餐"
+}
+
 【Query 與 Analysis 的重要區別】
 
 query 與 analysis 都可能需要讀取既有資料，
@@ -374,6 +758,44 @@ chat 只能使用以下欄位：
 - Education：學習
 - Subscription：訂閱
 - Other：其他
+
+【修改消費的分類規則】
+
+當使用者修改既有消費時：
+
+1. 如果使用者指定的「新分類」符合以下分類：
+   - Food
+   - Transport
+   - Entertainment
+   - Shopping
+   - Bills
+   - Health
+   - Education
+   - Subscription
+   - Other
+
+   才可以將該分類放入 category。
+
+2. 如果使用者提供的內容不是上述分類，
+   不可以自行創造新的 category。
+
+3. 例如：
+
+「把 55 元改成 Transport」
+→ category = "Transport"
+
+「把 55 元改成 Food」
+→ category = "Food"
+
+「把 55 元改成 Drink」
+→ 不可以把 Drink 放入 category。
+
+4. 如果使用者提供的內容可能是新的分類名稱，
+   但不是系統支援的分類，
+   請使用 chat 回覆提醒使用者目前支援的分類，
+   不要直接修改 Google Sheets。
+
+5. 不可以把未支援的分類自行轉換成其他分類。
 
 【Expense 資料處理規則】
 1. 不可以捏造使用者沒有提供的金額。
@@ -591,11 +1013,11 @@ def ask_gemini_with_image(image_bytes, mime_type):
 6. 如果可以辨識消費品項，填入 item。
 7. 如果無法辨識品項，item 使用 null。
 8. category 只能使用 SYSTEM_PROMPT 指定的分類。
-9. 如果無法確定分類，category 使用 null。
-10. 不要把店家名稱直接當成消費品項。
-11. note 可以補充圖片中值得保留的資訊。
-12. 最後只能輸出合法 JSON。
-13. 不要輸出 Markdown。
+9. 請優先根據圖片中的商品名稱、消費內容、店家類型判斷 category。
+10. 如果圖片中有足夠線索可以判斷分類，不要使用 null。
+11. 只有在確實沒有足夠資訊判斷分類時，category 才使用 null。
+12. 不要把店家名稱直接當成消費品項。
+13. note 可以補充圖片中值得保留的資訊。
 14. 不要輸出 JSON 以外的文字。
 
 如果圖片不是發票、收據或消費資料，

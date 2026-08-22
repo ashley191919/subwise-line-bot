@@ -1,6 +1,12 @@
 from datetime import date, timedelta
 
-from google_sheets import get_expenses, get_subscriptions
+from google_sheets import (
+    get_expenses,
+    get_subscriptions,
+    get_expenses_with_rows,
+    update_expense_row,
+    delete_expense
+)
 
 
 def filter_expenses(records, period="all"):
@@ -48,6 +54,18 @@ def filter_expenses(records, period="all"):
             filtered.append(record)
 
     return filtered
+
+def find_latest_expense_with_row():
+    """
+    找出 Google Sheets 中最後一筆消費。
+    """
+
+    records = get_expenses_with_rows()
+
+    if not records:
+        return None
+
+    return records[-1]
 
 
 def search_subscriptions(records, keyword=None):

@@ -68,6 +68,38 @@ def update_expense(row, column, value):
 
     return True
 
+def update_expense_row(row, updates):
+    """
+    修改指定消費資料列的多個欄位。
+
+    updates 範例：
+    {
+        "Category": "Transport",
+        "Amount": 120,
+        "Note": "捷運"
+    }
+    """
+
+    worksheet = get_worksheet()
+
+    headers = worksheet.row_values(1)
+
+    for column_name, value in updates.items():
+
+        if column_name not in headers:
+            print(f"⚠️ 找不到欄位：{column_name}")
+            continue
+
+        column_index = headers.index(column_name) + 1
+
+        worksheet.update_cell(
+            row,
+            column_index,
+            value
+        )
+
+    return True
+
 
 def delete_expense(row):
     """刪除指定資料列。"""
@@ -84,6 +116,26 @@ def get_subscriptions():
     worksheet = get_worksheet("Subscriptions")
 
     return worksheet.get_all_records()
+
+def get_expenses_with_rows():
+    """
+    取得消費資料以及對應的 Google Sheets 列號。
+    """
+
+    worksheet = get_worksheet()
+
+    records = worksheet.get_all_records()
+
+    results = []
+
+    for index, record in enumerate(records, start=2):
+
+        results.append({
+            "row": index,
+            "data": record
+        })
+
+    return results
 
 def query_data(target):
     """
@@ -182,3 +234,18 @@ def filter_subscriptions_by_keyword(subscriptions, keyword):
             filtered.append(subscription)
 
     return filtered
+
+def find_latest_expense(records, period="today"):
+    """
+    找出指定期間內最後一筆消費。
+    """
+
+    filtered = filter_expenses(
+        records,
+        period
+    )
+
+    if not filtered:
+        return None
+
+    return filtered[-1]

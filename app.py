@@ -44,6 +44,18 @@ handler = WebhookHandler(
     os.getenv("LINE_CHANNEL_SECRET")
 )
 
+VALID_CATEGORIES = {
+    "Food",
+    "Transport",
+    "Entertainment",
+    "Shopping",
+    "Bills",
+    "Health",
+    "Education",
+    "Subscription",
+    "Other"
+}
+
 @app.route("/")
 def home():
     return jsonify({
@@ -244,6 +256,177 @@ def process_command(text):
             "💡 提示：輸入 help 或 menu 查看目前可使用的功能。"
         )
 
+def find_expense_matches(data):
+    """
+    根據 Gemini 提供的日期與金額，
+    找出可能符合的消費資料。
+    """
+
+    from google_sheets import get_expenses
+
+    records = get_expenses()
+
+    target_date = data.get("date")
+    target_amount = data.get("amount")
+
+    if target_amount is None:
+        target_amount = data.get("old_amount")
+
+    matches = []
+
+    for index, record in enumerate(records, start=2):
+
+        record_date = str(
+            record.get("Date", "")
+        ).strip()
+
+        record_amount = record.get(
+            "Amount",
+            0
+        )
+
+        try:
+            record_amount = float(record_amount)
+        except (TypeError, ValueError):
+            continue
+
+        if target_date:
+            if record_date != target_date:
+                continue
+
+        if target_amount is not None:
+            try:
+                if record_amount != float(target_amount):
+                    continue
+            except (TypeError, ValueError):
+                continue
+
+        matches.append({
+            "row": index,
+            "record": record
+        })
+
+    return matches
+
+def edit_expense(data):
+    """
+    修改指定的消費資料。
+    """
+
+    from google_sheets import update_expense
+
+    matches = find_expense_matches(data)
+
+    if not matches:
+        return (
+            "🔎 找不到符合條件的消費資料。\n\n"
+            "請提供更明確的日期或金額。"
+        )
+
+    if len(matches) > 1:
+        return (
+            "⚠️ 找到多筆符合的消費資料。\n\n"
+            "為避免修改錯誤資料，"
+            "請提供更明確的日期或金額。"
+        )
+
+    match = matches[0]
+
+    row = match["row"]
+    record = match["record"]
+
+    field = data.get("field")
+    value = data.get("value")
+
+    if field == "category":
+        if value not in VALID_CATEGORIES:
+            return (
+                f"⚠️「{value}」不是目前支援的消費分類。\n\n"
+                "目前分類有：\n\n"
+                "🍜 Food｜餐飲\n"
+                "🚇 Transport｜交通\n"
+                "🎮 Entertainment｜娛樂\n"
+                "🛍️ Shopping｜購物\n"
+                "💡 Bills｜生活帳單\n"
+                "❤️ Health｜醫療保健\n"
+                "📚 Education｜學習\n"
+                "🔔 Subscription｜訂閱\n"
+                "📦 Other｜其他\n\n"
+                "請問你想把它改成哪一個分類？"
+            )
+
+    column_map = {
+        "category": 2,
+        "amount": 3,
+        "item": 4,
+        "note": 5
+    }
+
+    if field not in column_map:
+        return "⚠️ 目前不支援修改這個欄位。"
+
+    column = column_map[field]
+
+    update_expense(
+        row,
+        column,
+        value
+    )
+
+    if field == "category":
+        field_text = "分類"
+    elif field == "amount":
+        field_text = "金額"
+    elif field == "item":
+        field_text = "項目"
+    elif field == "note":
+        field_text = "備註"
+    else:
+        field_text = field
+
+    return (
+        "✏️ 記帳修改成功！\n\n"
+        f"📅 日期：{record.get('Date', '')}\n"
+        f"💵 金額：NT${record.get('Amount', '')}\n"
+        f"📝 {field_text}已修改為：{value}"
+    )
+
+def delete_expense(data):
+    """
+    刪除指定的消費資料。
+    """
+
+    from google_sheets import delete_expense as delete_sheet_row
+
+    matches = find_expense_matches(data)
+
+    if not matches:
+        return (
+            "🔎 找不到符合條件的消費資料。\n\n"
+            "請提供更明確的日期或金額。"
+        )
+
+    if len(matches) > 1:
+        return (
+            "⚠️ 找到多筆符合條件的消費資料。\n\n"
+            "為避免誤刪，請提供更明確的日期或金額。"
+        )
+
+    match = matches[0]
+
+    row = match["row"]
+    record = match["record"]
+
+    delete_sheet_row(row)
+
+    return (
+        "🗑️ 記帳刪除成功！\n\n"
+        f"📅 日期：{record.get('Date', '')}\n"
+        f"📂 分類：{record.get('Category', '')}\n"
+        f"💵 金額：NT${record.get('Amount', '')}\n"
+        f"📝 項目：{record.get('Note', '')}"
+    )
+
 def process_ai_message(text):
     """使用 Gemini 判斷使用者意圖，並回傳 AI 回覆。"""
 
@@ -256,7 +439,26 @@ def process_ai_message(text):
 
     print(f"📦 Gemini JSON：{data}")
 
-    if data_type == "chat":
+    if data_type == "invalid_category":
+
+        category = data.get("category", "未知分類")
+
+        return (
+            f"⚠️「{category}」不是目前支援的消費分類。\n\n"
+            "目前分類有：\n\n"
+            "🍜 Food｜餐飲\n"
+            "🚇 Transport｜交通\n"
+            "🎮 Entertainment｜娛樂\n"
+            "🛍️ Shopping｜購物\n"
+            "💡 Bills｜生活帳單\n"
+            "❤️ Health｜醫療保健\n"
+            "📚 Education｜學習\n"
+            "🔔 Subscription｜訂閱\n"
+            "📦 Other｜其他\n\n"
+            "請問你想把它改成哪一個分類？"
+        )
+
+    elif data_type == "chat":
         return data.get(
             "message",
             "🤖 我是 SubWise，你的 AI 智慧記帳與訂閱管理管家。"
@@ -330,6 +532,42 @@ def process_ai_message(text):
             return (
                 "❌ 查詢失敗\n\n"
                 "⚠️ 目前無法取得 Google Sheets 的資料，"
+                "請稍後再試。"
+            )
+
+    elif data_type == "expense_update":
+
+        print("✏️ Gemini 已辨識為修改消費")
+
+        try:
+
+            return edit_expense(data)
+
+        except Exception as e:
+
+            print(f"❌ 修改消費失敗：{e}")
+
+            return (
+                "❌ 修改失敗\n\n"
+                "⚠️ 目前無法修改這筆消費，"
+                "請稍後再試。"
+            )
+
+    elif data_type == "delete_expense":
+
+        print("🗑️ Gemini 已辨識為刪除消費")
+
+        try:
+
+            return delete_expense(data)
+
+        except Exception as e:
+
+            print(f"❌ 刪除消費失敗：{e}")
+
+            return (
+                "❌ 刪除失敗\n\n"
+                "⚠️ 目前無法刪除這筆消費，"
                 "請稍後再試。"
             )
 
