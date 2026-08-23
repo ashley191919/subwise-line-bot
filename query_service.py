@@ -55,6 +55,19 @@ def filter_expenses(records, period="all"):
 
     return filtered
 
+def sort_expenses_by_date(records):
+    """
+    將消費資料按照日期由新到舊排序。
+    """
+
+    return sorted(
+        records,
+        key=lambda record: str(
+            record.get("Date", "")
+        ),
+        reverse=True
+    )
+
 def find_latest_expense_with_row():
     """
     找出 Google Sheets 中最後一筆消費。
@@ -102,6 +115,41 @@ def calculate_expense_total(records):
 
     return total
 
+def find_highest_expense(records):
+    """
+    找出消費資料中金額最高的一筆。
+    """
+
+    if not records:
+        return None
+
+    highest = None
+
+    for record in records:
+
+        amount = record.get("Amount", 0)
+
+        try:
+            amount = float(amount)
+        except (ValueError, TypeError):
+            continue
+
+        if highest is None:
+            highest = record
+            continue
+
+        highest_amount = highest.get("Amount", 0)
+
+        try:
+            highest_amount = float(highest_amount)
+        except (ValueError, TypeError):
+            continue
+
+        if amount > highest_amount:
+            highest = record
+
+    return highest
+
 
 def format_expense_result(records, period):
     """將消費查詢結果整理成適合使用者閱讀的文字。"""
@@ -109,25 +157,96 @@ def format_expense_result(records, period):
     if not records:
         return "📭 目前查不到符合條件的消費資料。"
 
+    # 1. 計算總支出
     total = calculate_expense_total(records)
+
+    # 2. 計算消費筆數
+    count = len(records)
+
+    # 3. 找出最高單筆消費
+    highest = find_highest_expense(records)
+
+    # 4. 將消費按照日期由新到舊排序
+    records = sort_expenses_by_date(records)
 
     lines = [
         "💰 SubWise 消費查詢",
         "",
         f"📅 查詢期間：{period}",
         f"💵 總支出：NT${total:.0f}",
-        "",
-        "📋 消費明細："
+        f"🧾 消費筆數：{count} 筆",
     ]
 
+    # 5. 顯示最高單筆消費
+    if highest:
+
+        highest_date = highest.get(
+            "Date",
+            ""
+        )
+
+        highest_amount = highest.get(
+            "Amount",
+            0
+        )
+
+        highest_category = highest.get(
+            "Category",
+            ""
+        )
+
+        highest_note = highest.get(
+            "Note",
+            ""
+        )
+
+        lines.extend([
+            "",
+            "🔥 最高單筆消費",
+            f"📅 日期：{highest_date}",
+            f"💵 金額：NT${float(highest_amount):.0f}",
+            f"📂 分類：{highest_category}",
+            f"📝 備註：{highest_note}"
+        ])
+
+    # 6. 顯示消費明細
+    lines.extend([
+        "",
+        "📋 最近消費："
+    ])
+
     for record in records:
-        record_date = record.get("Date", "")
-        category = record.get("Category", "")
-        amount = record.get("Amount", 0)
-        note = record.get("Note", "")
+
+        record_date = record.get(
+            "Date",
+            ""
+        )
+
+        category = record.get(
+            "Category",
+            ""
+        )
+
+        amount = record.get(
+            "Amount",
+            0
+        )
+
+        note = record.get(
+            "Note",
+            ""
+        )
+
+        try:
+            amount = float(amount)
+        except (ValueError, TypeError):
+            amount = 0
 
         lines.append(
-            f"• {record_date}｜{category}｜NT${amount}｜{note}"
+            f"• {record_date}｜"
+            f"{category}｜"
+            f"NT${amount:.0f}｜"
+            f"{note}"
         )
 
     return "\n".join(lines)
