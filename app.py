@@ -398,7 +398,18 @@ def delete_expense(data):
 
     from google_sheets import delete_expense as delete_sheet_row
 
-    matches = find_expense_matches(data)
+    # Gemini 使用 old_amount 表示「原本的消費金額」。
+    # find_expense_matches() 使用 amount 搜尋，
+    # 因此這裡先轉換成 amount。
+    search_data = data.copy()
+
+    if (
+        search_data.get("amount") is None
+        and search_data.get("old_amount") is not None
+    ):
+        search_data["amount"] = search_data.get("old_amount")
+
+    matches = find_expense_matches(search_data)
 
     if not matches:
         return (
@@ -408,8 +419,9 @@ def delete_expense(data):
 
     if len(matches) > 1:
         return (
-            "⚠️ 找到多筆符合條件的消費資料。\n\n"
-            "為避免誤刪，請提供更明確的日期或金額。"
+            "⚠️ 找到多筆符合的消費資料。\n\n"
+            "為避免誤刪，"
+            "請提供更明確的日期或金額。"
         )
 
     match = matches[0]
@@ -553,7 +565,7 @@ def process_ai_message(text):
                 "請稍後再試。"
             )
 
-    elif data_type == "delete_expense":
+    elif data_type == "expense_delete":
 
         print("🗑️ Gemini 已辨識為刪除消費")
 
