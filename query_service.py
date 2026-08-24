@@ -1,4 +1,15 @@
 from datetime import date, timedelta
+CATEGORY_DISPLAY_NAMES = {
+    "Food": "🍜 餐飲",
+    "Transport": "🚇 交通",
+    "Entertainment": "🎮 娛樂",
+    "Shopping": "🛍️ 購物",
+    "Bills": "💡 生活帳單",
+    "Health": "❤️ 醫療保健",
+    "Education": "📚 學習",
+    "Subscription": "🔔 訂閱",
+    "Other": "📦 其他"
+}
 
 from google_sheets import (
     get_expenses,
@@ -99,6 +110,26 @@ def search_subscriptions(records, keyword=None):
 
     return results
 
+def filter_expenses_by_category(records, category=None):
+    """
+    根據消費分類篩選資料。
+    """
+
+    if not category:
+        return records
+
+    filtered = []
+
+    for record in records:
+
+        record_category = str(
+            record.get("Category", "")
+        ).strip()
+
+        if record_category == category:
+            filtered.append(record)
+
+    return filtered
 
 def calculate_expense_total(records):
     """計算消費總金額。"""
@@ -195,6 +226,11 @@ def format_expense_result(records, period):
             ""
         )
 
+        highest_category_display = CATEGORY_DISPLAY_NAMES.get(
+            highest_category,
+            highest_category
+        )
+
         highest_note = highest.get(
             "Note",
             ""
@@ -205,7 +241,7 @@ def format_expense_result(records, period):
             "🔥 最高單筆消費",
             f"📅 日期：{highest_date}",
             f"💵 金額：NT${float(highest_amount):.0f}",
-            f"📂 分類：{highest_category}",
+            f"📂 分類：{highest_category_display}",
             f"📝 備註：{highest_note}"
         ])
 
@@ -226,6 +262,11 @@ def format_expense_result(records, period):
             "Category",
             ""
         )
+        
+        category_display = CATEGORY_DISPLAY_NAMES.get(
+            category,
+            category
+        )
 
         amount = record.get(
             "Amount",
@@ -244,7 +285,7 @@ def format_expense_result(records, period):
 
         lines.append(
             f"• {record_date}｜"
-            f"{category}｜"
+            f"{category_display}｜"
             f"NT${amount:.0f}｜"
             f"{note}"
         )
@@ -288,6 +329,7 @@ def query_data(data):
     target = data.get("target")
     period = data.get("period", "all")
     keyword = data.get("keyword")
+    category = data.get("category")
 
     # -------------------------
     # 查詢消費
@@ -300,6 +342,11 @@ def query_data(data):
         records = filter_expenses(
             records,
             period
+        )
+
+        records = filter_expenses_by_category(
+            records,
+            category
         )
 
         return format_expense_result(

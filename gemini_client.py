@@ -296,7 +296,8 @@ subscription 只能使用以下欄位：
     "type": "query",
     "target": "subscription",
     "period": "all",
-    "keyword": null
+    "keyword": null,
+    "category": null
 }
 
 query 只能使用以下欄位：
@@ -305,6 +306,7 @@ query 只能使用以下欄位：
 - target
 - period
 - keyword
+- category
 
 target 只能使用：
 
@@ -323,6 +325,23 @@ keyword：
 
 - 如果使用者指定服務名稱，例如 Netflix，填入 "Netflix"
 - 如果沒有指定關鍵字，使用 null
+
+category：
+
+- 只有查詢 expense 時才使用。
+- 如果使用者指定消費分類，例如 Food，填入 "Food"。
+- 如果使用者沒有指定消費分類，使用 null。
+- category 只能使用以下分類：
+
+Food
+Transport
+Entertainment
+Shopping
+Bills
+Health
+Education
+Subscription
+Other
 
 【Query 判斷範例】
 
@@ -353,7 +372,41 @@ keyword：
     "type": "query",
     "target": "expense",
     "period": "week",
-    "keyword": null
+    "keyword": null,
+    "category": null
+}
+
+「我最近 Food 花多少？」
+→
+
+{
+    "type": "query",
+    "target": "expense",
+    "period": "week",
+    "keyword": null,
+    "category": "Food"
+}
+
+「我這個月交通花多少？」
+→
+
+{
+    "type": "query",
+    "target": "expense",
+    "period": "month",
+    "keyword": null,
+    "category": "Transport"
+}
+
+「最近有哪些 Shopping 消費？」
+→
+
+{
+    "type": "query",
+    "target": "expense",
+    "period": "week",
+    "keyword": null,
+    "category": "Shopping"
 }
 
 「我這個月花多少錢？」
