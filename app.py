@@ -5,6 +5,12 @@ from gemini_client import (
     ask_gemini,
     ask_gemini_with_image
 )
+from google_sheets import (
+    get_expenses,
+    get_subscriptions,
+    add_expense,
+    add_subscription,
+)
 from expense_service import save_expense
 from query_service import query_data
 from subscription_service import save_subscription

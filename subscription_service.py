@@ -2,6 +2,35 @@ from google_sheets import get_worksheet
 from datetime import date
 from calendar import monthrange
 
+def get_next_month_date(current_date):
+    """
+    將日期往後推一個月。
+    如果下一個月沒有相同日期，
+    就使用下一個月的最後一天。
+    """
+
+    if current_date.month == 12:
+        next_year = current_date.year + 1
+        next_month = 1
+    else:
+        next_year = current_date.year
+        next_month = current_date.month + 1
+
+    last_day = monthrange(
+        next_year,
+        next_month
+    )[1]
+
+    next_day = min(
+        current_date.day,
+        last_day
+    )
+
+    return date(
+        next_year,
+        next_month,
+        next_day
+    )
 
 def save_subscription(data):
     """
@@ -36,36 +65,86 @@ def save_subscription(data):
         print("⚠️ 缺少訂閱金額")
         return False
 
-    if not next_billing_date:
+    # =========================
+    # 1. 處理下一次扣款日期
+    # =========================
 
-        today = date.today()
+    today = date.today()
 
-        if billing_cycle == "monthly":
+    if next_billing_date:
 
-            if today.month == 12:
-                next_year = today.year + 1
-                next_month = 1
-            else:
-                next_year = today.year
-                next_month = today.month + 1
-
-            last_day = monthrange(
-                next_year,
-                next_month
-            )[1]
-
-            next_day = min(
-                today.day,
-                last_day
+        try:
+            billing_date = date.fromisoformat(
+                str(next_billing_date)
             )
 
-            next_billing_date = date(
-                next_year,
-                next_month,
-                next_day
-            ).isoformat()
+        except ValueError:
+            print("⚠️ 扣款日期格式錯誤")
+            return False
 
-            data["next_billing_date"] = next_billing_date
+        # 如果指定日期已經到期，
+        # monthly 訂閱就往後推一個月
+        if billing_date <= today:
+
+            if billing_cycle == "monthly":
+
+                billing_date = get_next_month_date(
+                    billing_date
+                )
+
+                next_billing_date = billing_date.isoformat()
+
+                print(
+                    f"📅 原扣款日已到期，"
+                    f"自動更新下一次扣款日：{next_billing_date}"
+                )
+
+            elif billing_cycle == "yearly":
+
+                billing_date = date(
+                    billing_date.year + 1,
+                    billing_date.month,
+                    billing_date.day
+                )
+
+                next_billing_date = billing_date.isoformat()
+
+                print(
+                    f"📅 原扣款日已到期，"
+                    f"自動更新下一次扣款日：{next_billing_date}"
+                )
+
+            else:
+                print("⚠️ 目前無法自動推算此扣款週期")
+                return False
+
+    else:
+
+        # Gemini 沒有提供日期
+        if billing_cycle == "monthly":
+
+            billing_date = get_next_month_date(
+                today
+            )
+
+            next_billing_date = billing_date.isoformat()
+
+            print(
+                f"📅 未提供扣款日期，"
+                f"預設下一次扣款日：{next_billing_date}"
+            )
+
+        elif billing_cycle == "yearly":
+
+            # 年繳訂閱沒有提供日期時，
+            # 預設下一次扣款日為一年後的今天
+            billing_date = date(
+                today.year + 1,
+                today.month,
+                today.day
+            )
+
+            next_billing_date = billing_date.isoformat()
 
             print(
                 f"📅 未提供扣款日期，"
@@ -75,6 +154,8 @@ def save_subscription(data):
         else:
             print("⚠️ 缺少下次扣款日期")
             return False
+
+    data["next_billing_date"] = next_billing_date
 
     # =========================
     # 2. 檢查金額格式

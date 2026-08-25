@@ -110,6 +110,30 @@ def delete_expense(row):
 
     return True
 
+def add_subscription(
+    name,
+    amount,
+    billing_cycle,
+    next_billing_date,
+    category="Subscription",
+    note=""
+):
+    """新增一筆訂閱資料。"""
+
+    worksheet = get_worksheet("Subscriptions")
+
+    worksheet.append_row([
+        name,
+        amount,
+        billing_cycle,
+        next_billing_date,
+        "Active",
+        category,
+        note
+    ])
+
+    return True
+
 def get_subscriptions():
     """取得所有訂閱資料。"""
 
