@@ -274,6 +274,232 @@ def get_subscriptions():
 
         return []
 
+def get_upcoming_subscriptions(days=7):
+    """
+    取得未來指定天數內即將扣款的訂閱。
+    """
+
+    records = get_subscriptions()
+
+    today = date.today()
+
+    upcoming = []
+
+    for record in records:
+
+        status = str(
+            record.get("Status", "")
+        ).strip()
+
+        # 只處理啟用中的訂閱
+        if status.lower() != "active":
+            continue
+
+        next_date = record.get(
+            "Next Billing Date"
+        )
+
+        if not next_date:
+            continue
+
+        try:
+            billing_date = date.fromisoformat(
+                str(next_date).strip()
+            )
+        except ValueError:
+            continue
+
+        days_until = (
+            billing_date - today
+        ).days
+
+        # 只保留未來 days 天內的訂閱
+        if 0 <= days_until <= days:
+
+            upcoming.append({
+                "service": record.get(
+                    "Service",
+                    "未命名"
+                ),
+                "price": record.get(
+                    "Price",
+                    0
+                ),
+                "billing_cycle": record.get(
+                    "Billing Cycle",
+                    "未知"
+                ),
+                "next_billing_date": (
+                    billing_date.isoformat()
+                ),
+                "days_until": days_until,
+            })
+
+    # 按照距離扣款日的天數排序
+    upcoming.sort(
+        key=lambda item: item["days_until"]
+    )
+
+    return upcoming
+
+def calculate_monthly_subscription_cost(records=None):
+    """
+    計算目前所有 Active 訂閱的每月支出。
+
+    monthly：
+        直接計入月支出
+
+    yearly：
+        年費除以 12，換算成平均每月支出
+    """
+
+    if records is None:
+        records = get_subscriptions()
+
+    monthly_cost = 0
+
+    for record in records:
+
+        status = str(
+            record.get("Status", "")
+        ).strip()
+
+        # 只計算啟用中的訂閱
+        if status.lower() != "active":
+            continue
+
+        price = record.get("Price", 0)
+
+        try:
+            price = float(price)
+        except (TypeError, ValueError):
+            continue
+
+        billing_cycle = str(
+            record.get("Billing Cycle", "")
+        ).strip().lower()
+
+        if billing_cycle == "monthly":
+
+            monthly_cost += price
+
+        elif billing_cycle == "yearly":
+
+            monthly_cost += price / 12
+
+    return round(monthly_cost, 2)
+
+def get_subscription_analysis(days=7):
+    """
+    取得訂閱整體分析結果。
+    """
+
+    records = get_subscriptions()
+
+    active_records = []
+
+    for record in records:
+
+        status = str(
+            record.get("Status", "")
+        ).strip()
+
+        if status.lower() == "active":
+            active_records.append(record)
+
+    upcoming = get_upcoming_subscriptions(days)
+
+    monthly_cost = calculate_monthly_subscription_cost(
+        active_records
+    )
+
+    return {
+        "total_active": len(active_records),
+        "monthly_cost": monthly_cost,
+        "upcoming": upcoming
+    }
+
+def format_subscription_analysis(analysis, days=7):
+    """
+    將訂閱分析結果整理成 LINE 可閱讀的文字。
+    """
+
+    if not analysis:
+        return "📭 目前沒有訂閱資料。"
+
+    total_active = analysis.get(
+        "total_active",
+        0
+    )
+
+    monthly_cost = analysis.get(
+        "monthly_cost",
+        0
+    )
+
+    upcoming = analysis.get(
+        "upcoming",
+        []
+    )
+
+    message = (
+        "🔔 SubWise 訂閱分析\n\n"
+        f"📦 啟用中的訂閱：{total_active} 個\n"
+        f"💰 每月平均支出：NT${monthly_cost:,.2f}\n\n"
+    )
+
+    if not upcoming:
+
+        message += (
+            f"📅 未來 {days} 天內沒有即將扣款的訂閱。"
+        )
+
+        return message
+
+    message += (
+        f"📅 未來 {days} 天即將扣款\n\n"
+    )
+
+    for index, item in enumerate(
+        upcoming,
+        start=1
+    ):
+
+        service = item.get(
+            "service",
+            "未命名"
+        )
+
+        price = item.get(
+            "price",
+            0
+        )
+
+        billing_cycle = item.get(
+            "billing_cycle",
+            "未知"
+        )
+
+        billing_date = item.get(
+            "next_billing_date",
+            "未知"
+        )
+
+        days_until = item.get(
+            "days_until",
+            0
+        )
+
+        message += (
+            f"{index}️⃣ {service}\n"
+            f"   💰 NT${float(price):,.0f} / "
+            f"{billing_cycle}\n"
+            f"   📅 {billing_date}\n"
+            f"   ⏳ 還有 {days_until} 天\n\n"
+        )
+
+    return message.rstrip()
+
 def format_subscriptions(records):
     """
     將訂閱資料整理成使用者容易閱讀的文字。

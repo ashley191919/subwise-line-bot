@@ -431,7 +431,7 @@ Other
 
 【Analysis JSON 格式】
 
-如果使用者希望分析已經存在的消費資料，
+如果使用者希望分析已經存在的消費或訂閱資料，
 type 必須使用 "analysis"。
 
 例如：
@@ -451,6 +451,7 @@ analysis 只能使用以下欄位：
 target 只能使用：
 
 - expense：分析消費資料
+- subscription：分析訂閱資料
 
 period 只能使用：
 
@@ -460,7 +461,21 @@ period 只能使用：
 - month：本月
 - all：全部資料
 
-【Analysis 判斷範例】
+【Analysis 判斷規則】
+
+如果使用者想了解消費結構、
+消費習慣、支出比例、最高支出、
+平均支出或消費建議，
+
+使用：
+
+{
+    "type": "analysis",
+    "target": "expense",
+    "period": "對應期間"
+}
+
+例如：
 
 「幫我分析這個月的消費」
 →
@@ -471,42 +486,105 @@ period 只能使用：
     "period": "month"
 }
 
-「分析我這週花費」
+如果使用者想了解訂閱支出、
+訂閱數量、每月訂閱成本、
+即將扣款的訂閱或訂閱支出狀況，
+
+使用：
+
+{
+    "type": "analysis",
+    "target": "subscription",
+    "period": "對應期間"
+}
+
+例如：
+
+「幫我分析訂閱」
 →
 
 {
     "type": "analysis",
-    "target": "expense",
-    "period": "week"
+    "target": "subscription",
+    "period": "all"
 }
 
-「幫我分析今天的消費」
+「我每個月訂閱花多少？」
 →
 
 {
     "type": "analysis",
-    "target": "expense",
-    "period": "today"
+    "target": "subscription",
+    "period": "all"
 }
 
-「我的消費有什麼問題？」
+「我的訂閱支出有多少？」
 →
 
 {
     "type": "analysis",
-    "target": "expense",
-    "period": "month"
+    "target": "subscription",
+    "period": "all"
 }
 
-「哪一類是我花最多錢的？」
+「幫我看看我的訂閱狀況」
 →
 
 {
     "type": "analysis",
-    "target": "expense",
-    "period": "month"
+    "target": "subscription",
+    "period": "all"
 }
 
+【Analysis 與 Query 的重要區別】
+
+query = 查看資料
+
+analysis = 解讀資料
+
+如果使用者只是想：
+
+- 查看
+- 列出
+- 找出
+- 查詢
+- 什麼時候
+- 有哪些
+
+使用 query。
+
+如果使用者想：
+
+- 分析
+- 比較
+- 統計
+- 找出重點
+- 了解支出狀況
+- 了解訂閱成本
+- 找出問題
+- 得到建議
+
+使用 analysis。
+
+例如：
+
+「我有哪些訂閱？」
+→ query
+
+「Netflix 什麼時候扣款？」
+→ query
+
+「最近有哪些訂閱要扣款？」
+→ query
+
+「幫我分析訂閱」
+→ analysis
+
+「我每個月訂閱花多少？」
+→ analysis
+
+不要因為 analysis 需要讀取 Google Sheets
+就把 analysis 判斷成 query。
 【Expense Update JSON 格式】
 
 如果使用者希望修改已經存在的消費資料，
@@ -911,24 +989,44 @@ chat 只能使用以下欄位：
    使用 null。
 
 【Query 資料處理規則】
-1. 使用者想查看已存在的訂閱，
-   target 使用 "subscriptions"。
-2. 使用者想查看已存在的消費，
-   target 使用 "expenses"。
-3. Query 不負責直接讀取 Google Sheets。
-4. Gemini 只負責判斷使用者想查什麼。
-5. 實際資料查詢由 Python 程式負責。
-6. 如果使用者是在查詢既有消費或訂閱資料，必須使用 query。
-7. 查詢消費時 target 使用 expense。
-8. 查詢訂閱時 target 使用 subscription。
-9. 如果使用者沒有指定服務名稱，keyword 使用 null。
-10. 如果使用者詢問「我有哪些訂閱」，period 使用 all。
-11. 如果使用者詢問「最近有哪些消費」，period 使用 week。
-12. 如果使用者詢問「這個月花多少錢」，period 使用 month。
-13. 如果使用者詢問「今天花多少錢」，period 使用 today。
-14. query 不需要 amount、category、item、date 等 expense 欄位。
-15. query 不需要 name、billing_cycle、next_billing_date 等 subscription 欄位。
 
+1. 使用者想查看已存在的訂閱，
+   target 使用 "subscription"。
+
+2. 使用者想查看已存在的消費，
+   target 使用 "expense"。
+
+3. Query 不負責直接讀取 Google Sheets。
+
+4. Gemini 只負責判斷使用者想查什麼。
+
+5. 實際資料查詢由 Python 程式負責。
+
+6. 如果使用者是在查詢既有消費或訂閱資料，
+   必須使用 query。
+
+7. 查詢消費時 target 使用 "expense"。
+
+8. 查詢訂閱時 target 使用 "subscription"。
+
+9. 如果使用者沒有指定服務名稱，
+   keyword 使用 null。
+
+10. 如果使用者詢問「我有哪些訂閱」，
+    period 使用 all。
+
+11. 如果使用者詢問「最近有哪些消費」，
+    period 使用 week。
+
+12. 如果使用者詢問「這個月花多少錢」，
+    period 使用 month。
+
+13. 如果使用者詢問「今天花多少錢」，
+    period 使用 today。
+
+14. query 不需要 amount、category、item、date 等 expense 欄位。
+
+15. query 不需要 name、billing_cycle、next_billing_date 等 subscription 欄位。
 
 也必須輸出合法 JSON。
 

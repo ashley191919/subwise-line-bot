@@ -13,7 +13,11 @@ from google_sheets import (
 )
 from expense_service import save_expense
 from query_service import query_data
-from subscription_service import save_subscription
+from subscription_service import (
+    save_subscription,
+    get_subscription_analysis,
+    format_subscription_analysis
+)
 from analysis_service import (
     get_expense_analysis,
     format_analysis_result,
@@ -550,6 +554,37 @@ def process_ai_message(text):
             return (
                 "❌ 查詢失敗\n\n"
                 "⚠️ 目前無法取得 Google Sheets 的資料，"
+                "請稍後再試。"
+            )
+
+    elif data_type == "subscription_analysis":
+
+        print("📊 Gemini 已辨識為訂閱分析")
+        print("🔔 開始分析 Subscription Google Sheets...")
+
+        try:
+
+            days = data.get("days", 7)
+
+            analysis = get_subscription_analysis(
+                days
+            )
+
+            print("✅ 訂閱分析完成")
+            print(f"📦 分析資料：{analysis}")
+
+            return format_subscription_analysis(
+                analysis,
+                days
+            )
+
+        except Exception as e:
+
+            print(f"❌ 訂閱分析失敗：{e}")
+
+            return (
+                "❌ 訂閱分析失敗\n\n"
+                "⚠️ 目前無法取得訂閱分析資料，"
                 "請稍後再試。"
             )
 

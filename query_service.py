@@ -362,6 +362,11 @@ def query_data(data):
 
         records = get_subscriptions()
 
+        records = filter_subscriptions_by_period(
+            records,
+            period
+        )
+
         records = search_subscriptions(
             records,
             keyword
@@ -372,3 +377,62 @@ def query_data(data):
         )
 
     return "⚠️ 目前無法判斷你想查詢哪一類資料。"
+
+def filter_subscriptions_by_period(records, period="all"):
+    """依照下次扣款日期篩選訂閱資料。"""
+
+    today = date.today()
+
+    if period == "today":
+        start_date = today
+        end_date = today
+
+    elif period == "week":
+        start_date = today
+        end_date = today + timedelta(days=6)
+
+    elif period == "month":
+        start_date = today.replace(day=1)
+
+        if today.month == 12:
+            next_month = today.replace(
+                year=today.year + 1,
+                month=1,
+                day=1
+            )
+        else:
+            next_month = today.replace(
+                month=today.month + 1,
+                day=1
+            )
+
+        end_date = next_month - timedelta(days=1)
+
+    elif period == "all":
+        return records
+
+    else:
+        return []
+
+    filtered = []
+
+    for record in records:
+
+        next_date = record.get(
+            "Next Billing Date"
+        )
+
+        if not next_date:
+            continue
+
+        try:
+            next_date = date.fromisoformat(
+                str(next_date)
+            )
+        except ValueError:
+            continue
+
+        if start_date <= next_date <= end_date:
+            filtered.append(record)
+
+    return filtered
