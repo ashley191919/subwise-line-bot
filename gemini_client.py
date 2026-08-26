@@ -297,7 +297,8 @@ subscription 只能使用以下欄位：
     "target": "subscription",
     "period": "all",
     "keyword": null,
-    "category": null
+    "category": null,
+    "upcoming": false
 }
 
 query 只能使用以下欄位：
@@ -307,6 +308,7 @@ query 只能使用以下欄位：
 - period
 - keyword
 - category
+- upcoming
 
 target 只能使用：
 
@@ -1037,6 +1039,34 @@ chat 只能使用以下欄位：
 }
 請使用繁體【一般對話】
 即使是 chat，中文回答。
+
+upcoming 只能使用 true 或 false。
+
+如果使用者只是查看訂閱資料，
+upcoming 使用 false。
+
+如果使用者詢問：
+- 即將扣款
+- 最近要扣款的訂閱
+- 接下來要扣款的訂閱
+- 哪些訂閱快要扣款
+- 未來幾天要扣款的訂閱
+
+upcoming 使用 true。
+
+例如：
+
+「我有哪些訂閱？」
+→ upcoming = false
+
+「Netflix 什麼時候扣款？」
+→ upcoming = false
+
+「最近有哪些訂閱要扣款？」
+→ upcoming = true
+
+「未來 7 天有哪些訂閱要扣款？」
+→ upcoming = true
 
 【最重要的輸出規則】
 1. 最後只能輸出一個合法 JSON。

@@ -19,6 +19,106 @@ from google_sheets import (
     delete_expense
 )
 
+def get_upcoming_subscriptions(records, days=7):
+    """
+    找出未來指定天數內即將扣款的 Active 訂閱。
+
+    例如今天是 2026-08-26、days=7，
+    就會找出 2026-08-27 ～ 2026-09-02
+    之間且狀態為 Active 的訂閱。
+    """
+
+    today = date.today()
+    end_date = today + timedelta(days=days)
+
+    upcoming = []
+
+    for record in records:
+
+        status = str(
+            record.get("Status", "")
+        ).strip().lower()
+
+        # 只提醒啟用中的訂閱
+        if status != "active":
+            continue
+
+        next_billing_date = record.get(
+            "Next Billing Date"
+        )
+
+        if not next_billing_date:
+            continue
+
+        try:
+            billing_date = date.fromisoformat(
+                str(next_billing_date).strip()
+            )
+        except ValueError:
+            continue
+
+        if today < billing_date <= end_date:
+
+            days_until = (
+                billing_date - today
+            ).days
+
+            subscription = record.copy()
+
+            subscription["days_until"] = days_until
+
+            upcoming.append(subscription)
+
+    upcoming.sort(
+        key=lambda record: record.get(
+            "Next Billing Date",
+            ""
+        )
+    )
+
+    return upcoming
+
+def format_upcoming_subscriptions(records):
+    """
+    將即將扣款的訂閱資料整理成適合 LINE 顯示的文字。
+    """
+
+    if not records:
+        return "🔔 最近 7 天沒有即將扣款的訂閱。"
+
+    lines = [
+        "⏰ 即將扣款提醒",
+        ""
+    ]
+
+    for record in records:
+        service = record.get("Service", "")
+        price = record.get("Price", "")
+        next_date = record.get("Next Billing Date", "")
+        days_until = record.get("days_until")
+
+        if days_until == 0:
+            timing = "⚠️ 今天扣款"
+        elif days_until == 1:
+            timing = "🔔 明天扣款"
+        else:
+            timing = f"📅 {days_until} 天後扣款"
+
+        lines.append(
+            f"📌 {service}"
+        )
+        lines.append(
+            f"💰 費用：NT${price}"
+        )
+        lines.append(
+            f"📅 扣款日：{next_date}"
+        )
+        lines.append(
+            timing
+        )
+        lines.append("")
+
+    return "\n".join(lines).strip()
 
 def filter_expenses(records, period="all"):
     """依照指定期間篩選消費資料。"""
@@ -330,6 +430,7 @@ def query_data(data):
     period = data.get("period", "all")
     keyword = data.get("keyword")
     category = data.get("category")
+    upcoming = data.get("upcoming", False)
 
     # -------------------------
     # 查詢消費
@@ -362,6 +463,25 @@ def query_data(data):
 
         records = get_subscriptions()
 
+        # -------------------------
+        # 即將扣款查詢
+        # -------------------------
+
+        if upcoming:
+
+            records = get_upcoming_subscriptions(
+                records,
+                days=7
+            )
+
+            return format_upcoming_subscriptions(
+                records
+            )
+
+        # -------------------------
+        # 一般訂閱查詢
+        # -------------------------
+
         records = filter_subscriptions_by_period(
             records,
             period
@@ -386,6 +506,11 @@ def filter_subscriptions_by_period(records, period="all"):
     if period == "today":
         start_date = today
         end_date = today
+
+    elif period == "yesterday":
+        yesterday = today - timedelta(days=1)
+        start_date = yesterday
+        end_date = yesterday
 
     elif period == "week":
         start_date = today
