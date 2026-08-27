@@ -85,6 +85,85 @@ def callback():
 
     return "OK"
 
+def create_main_menu_quick_reply():
+    """
+    建立 SubWise 主首頁的 LINE Quick Reply。
+    """
+
+    return QuickReply(
+        items=[
+            QuickReplyItem(
+                action=MessageAction(
+                    label="💰 記帳",
+                    text="記帳"
+                )
+            ),
+            QuickReplyItem(
+                action=MessageAction(
+                    label="🔎 查詢",
+                    text="查詢"
+                )
+            ),
+            QuickReplyItem(
+                action=MessageAction(
+                    label="📊 分析",
+                    text="分析"
+                )
+            ),
+            QuickReplyItem(
+                action=MessageAction(
+                    label="🔔 訂閱",
+                    text="訂閱"
+                )
+            ),
+            QuickReplyItem(
+                action=MessageAction(
+                    label="⏰ 扣款提醒",
+                    text="扣款提醒"
+                )
+            )
+        ]
+    )
+
+def get_main_menu():
+    """
+    回傳 SubWise 互動式首頁。
+    """
+
+    return (
+        "🤖 SubWise\n\n"
+        "嗨！我是你的智慧生活記帳管家 👋\n\n"
+        "你想做什麼？\n\n"
+        "💰 記帳｜記錄日常消費\n"
+        "🔎 查詢｜查看消費與訂閱\n"
+        "📊 分析｜了解你的消費狀況\n"
+        "🔔 訂閱｜管理週期性服務\n"
+        "⏰ 扣款提醒｜查看近期扣款\n\n"
+        "👇 點選下方功能開始"
+    )  
+
+def create_query_quick_reply():
+    """
+    建立查詢功能的 LINE Quick Reply。
+    """
+
+    return QuickReply(
+        items=[
+            QuickReplyItem(
+                action=MessageAction(
+                    label="💰 消費",
+                    text="查詢消費"
+                )
+            ),
+            QuickReplyItem(
+                action=MessageAction(
+                    label="🔔 訂閱",
+                    text="查詢訂閱"
+                )
+            )
+        ]
+    )
+
 def create_analysis_quick_reply():
     """
     建立消費分析的 LINE Quick Reply。
@@ -127,6 +206,15 @@ def process_feature_command(text):
             "「午餐 120 元」\n"
             "「今天搭捷運 50 元」\n\n"
             "🤖 我會幫你自動整理消費資訊。"
+        )
+
+    elif text in ["查詢", "查詢資料"]:
+        return (
+            "🔎 SubWise 查詢\n\n"
+            "你想查看什麼？\n\n"
+            "💰 消費｜查看消費紀錄\n"
+            "🔔 訂閱｜查看目前訂閱\n\n"
+            "👇 點選下方選項開始"
         )
 
     elif text in ["分析", "消費分析", "支出分析"]:
@@ -216,6 +304,12 @@ def get_quick_reply(text):
     """
 
     text = text.lower().strip()
+
+    if text in ["help", "menu", "功能", "選單"]:
+        return create_main_menu_quick_reply()
+
+    if text in ["查詢", "查詢資料"]:
+        return create_query_quick_reply()
 
     if text in ["分析", "消費分析", "支出分析"]:
         return create_analysis_quick_reply()
