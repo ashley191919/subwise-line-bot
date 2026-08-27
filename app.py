@@ -12,11 +12,16 @@ from google_sheets import (
     add_subscription,
 )
 from expense_service import save_expense
-from query_service import query_data
+from query_service import (
+    query_data,
+    get_upcoming_subscriptions,
+    format_upcoming_subscriptions
+)
 from subscription_service import (
     save_subscription,
     get_subscription_analysis,
-    format_subscription_analysis
+    format_subscription_analysis,
+    get_subscriptions
 )
 from analysis_service import (
     get_expense_analysis,
@@ -254,6 +259,9 @@ def process_feature_command(text):
 
     elif text in ["本月", "這個月"]:
         return process_analysis_period("month")
+    
+    elif text in ["扣款提醒", "即將扣款", "近期扣款"]:
+        return process_upcoming_subscriptions()
 
     return None
 
@@ -295,6 +303,48 @@ def process_analysis_period(period):
         return (
             "❌ 分析失敗\n\n"
             "⚠️ 目前無法取得消費分析資料，"
+            "請稍後再試。"
+        )
+
+def process_upcoming_subscriptions():
+    """
+    查詢最近 7 天內即將扣款的訂閱。
+    """
+
+    print("⏰ 開始查詢近期扣款訂閱")
+
+    try:
+        # 取得所有訂閱
+        records = get_subscriptions()
+
+        print(
+            f"📦 訂閱資料筆數：{len(records)}"
+        )
+
+        # 找出 7 天內即將扣款的訂閱
+        upcoming = get_upcoming_subscriptions(
+            records,
+            days=7
+        )
+
+        print(
+            f"⏰ 即將扣款筆數：{len(upcoming)}"
+        )
+
+        # 整理成 LINE 顯示文字
+        return format_upcoming_subscriptions(
+            upcoming
+        )
+
+    except Exception as e:
+
+        print(
+            f"❌ 扣款提醒查詢失敗：{e}"
+        )
+
+        return (
+            "❌ 扣款提醒查詢失敗\n\n"
+            "⚠️ 目前無法取得訂閱資料，"
             "請稍後再試。"
         )
 
