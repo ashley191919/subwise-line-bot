@@ -371,6 +371,87 @@ def get_quick_reply(text):
 
     return None
 
+def detect_intent(text):
+    """
+    根據使用者輸入判斷目前的功能意圖。
+    """
+
+    text = text.lower().strip()
+
+    if text in ["記帳", "帳目", "新增記帳"]:
+        return "expense"
+
+    if text in ["查詢", "查詢資料"]:
+        return "query"
+
+    if text in ["分析", "消費分析", "支出分析"]:
+        return "analysis"
+
+    if text in ["訂閱", "訂閱管理", "訂閱服務"]:
+        return "subscription"
+
+    if text in ["扣款提醒", "即將扣款", "近期扣款"]:
+        return "reminder"
+
+    return None
+
+def get_contextual_intent(user_id, text):
+    """
+    根據目前訊息與使用者上下文，
+    判斷目前真正的功能意圖。
+    """
+
+    intent = detect_intent(text)
+
+    # 如果目前訊息本身就能判斷意圖
+    if intent:
+        return intent
+
+    # 如果目前訊息沒有明確意圖，
+    # 嘗試使用上一個功能意圖
+    last_intent = get_context(
+        user_id,
+        "last_intent"
+    )
+
+    if text.lower().strip() in [
+        "今天",
+        "今日",
+        "本週",
+        "這週",
+        "這周",
+        "本月",
+        "這個月"
+    ]:
+        return last_intent
+
+    return None
+
+def process_contextual_command(user_id, text):
+    """
+    根據使用者上下文處理需要前後文的指令。
+    """
+
+    intent = get_contextual_intent(
+        user_id,
+        text
+    )
+
+    if intent == "analysis":
+
+        text = text.lower().strip()
+
+        if text in ["今天", "今日"]:
+            return process_analysis_period("today")
+
+        if text in ["本週", "這週", "這周"]:
+            return process_analysis_period("week")
+
+        if text in ["本月", "這個月"]:
+            return process_analysis_period("month")
+
+    return None
+
 def process_command(text):
     """根據使用者輸入的指令，回傳對應的回覆內容。"""
 
@@ -829,6 +910,18 @@ def handle_message(event):
         text
     )
 
+    contextual_intent = get_contextual_intent(
+        user_id,
+        text
+    )
+
+    if contextual_intent:
+        set_context(
+            user_id,
+            "last_intent",
+            contextual_intent
+        )
+
     print(
         f"🧠 使用者上下文：{get_all_context(user_id)}"
     )
@@ -880,14 +973,22 @@ def handle_message(event):
     ]
 
     # 判斷訊息要走固定指令還是 Gemini
-    if text.lower() in fixed_commands:
+    contextual_reply = process_contextual_command(
+        user_id,
+        text
+    )
+
+    if contextual_reply:
+        print("🧠 使用上下文處理")
+        reply_text = contextual_reply
+
+    elif text.lower() in fixed_commands:
         print("📌 使用固定指令處理")
         reply_text = process_command(text)
 
     else:
         print("🤖 交給 Gemini AI 處理")
         reply_text = process_ai_message(text)
-
     # 回覆 LINE
     quick_reply = get_quick_reply(text)
 
