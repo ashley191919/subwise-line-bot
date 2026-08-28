@@ -29,7 +29,12 @@ from analysis_service import (
     generate_spending_insight
 )
 from menu_service import get_main_menu
-
+from context_service import (
+    set_context,
+    get_context,
+    get_all_context,
+    clear_context
+)
 from linebot.v3 import WebhookHandler
 from linebot.v3.messaging import (
     Configuration,
@@ -812,6 +817,21 @@ def handle_message(event):
 
     # 取得使用者輸入
     text = event.message.text.strip()
+
+    # 取得 LINE 使用者 ID
+    user_id = event.source.user_id
+
+    print(f"👤 LINE User ID：{user_id}")
+
+    set_context(
+        user_id,
+        "last_message",
+        text
+    )
+
+    print(
+        f"🧠 使用者上下文：{get_all_context(user_id)}"
+    )
 
     print("🔥 Render 收到 LINE 訊息")
     print(f"📩 LINE 收到訊息：{text}")
