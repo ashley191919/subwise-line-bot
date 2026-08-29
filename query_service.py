@@ -120,7 +120,7 @@ def format_upcoming_subscriptions(records):
 
     return "\n".join(lines).strip()
 
-def filter_expenses(records, period="all"):
+def filter_expenses(records, period="all", target_date=None):
     """依照指定期間篩選消費資料。"""
 
     today = date.today()
@@ -142,6 +142,20 @@ def filter_expenses(records, period="all"):
         start_date = today.replace(day=1)
         end_date = today
 
+    elif period == "date":
+        if not target_date:
+            return []
+
+        try:
+            target_date = date.fromisoformat(
+                str(target_date)
+            )
+        except ValueError:
+            return []
+
+        start_date = target_date
+        end_date = target_date
+
     elif period == "all":
         return records
 
@@ -157,7 +171,9 @@ def filter_expenses(records, period="all"):
             continue
 
         try:
-            record_date = date.fromisoformat(str(record_date))
+            record_date = date.fromisoformat(
+                str(record_date)
+            )
         except ValueError:
             continue
 
@@ -428,6 +444,7 @@ def query_data(data):
 
     target = data.get("target")
     period = data.get("period", "all")
+    target_date = data.get("date")
     keyword = data.get("keyword")
     category = data.get("category")
     upcoming = data.get("upcoming", False)
@@ -442,7 +459,8 @@ def query_data(data):
 
         records = filter_expenses(
             records,
-            period
+            period,
+            target_date
         )
 
         records = filter_expenses_by_category(

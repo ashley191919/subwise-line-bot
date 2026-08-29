@@ -152,6 +152,44 @@ def get_main_menu():
         "👇 點選下方功能開始"
     )  
 
+def get_friendly_error_message(error_type):
+    """
+    回傳 SubWise 統一的友善錯誤訊息。
+    """
+
+    messages = {
+        "gemini":
+            "⚠️ SubWise AI 暫時無法回應\n\n"
+            "目前 AI 服務可能比較忙碌，"
+            "請稍後再試。",
+
+        "google_sheets":
+            "⚠️ SubWise 暫時無法取得資料\n\n"
+            "目前資料服務沒有正常回應，"
+            "請稍後再試。",
+
+        "no_data":
+            "📭 目前還沒有找到相關資料。\n\n"
+            "💡 可以先新增一些資料，再回來查看。",
+
+        "invalid_command":
+            "🤔 我目前看不懂這個指令。\n\n"
+            "💡 可以輸入 help 或 menu 查看功能。",
+
+        "context":
+            "🤔 我不太確定你想做什麼。\n\n"
+            "💡 請重新選擇功能，或輸入 help 查看選單。",
+
+        "unknown":
+            "⚠️ SubWise 暫時遇到問題\n\n"
+            "請稍後再試。"
+    }
+
+    return messages.get(
+        error_type,
+        messages["unknown"]
+    )
+
 def create_query_quick_reply():
     """
     建立查詢功能的 LINE Quick Reply。
@@ -209,62 +247,76 @@ def process_feature_command(text):
 
     text = text.lower().strip()
 
+    # 💰 記帳
     if text in ["記帳", "帳目", "新增記帳"]:
         return (
             "💰 SubWise 記帳\n\n"
-            "直接告訴我你花了多少錢，例如：\n\n"
-            "「午餐 120 元」\n"
-            "「今天搭捷運 50 元」\n\n"
-            "🤖 我會幫你自動整理消費資訊。"
+            "你可以直接告訴我消費內容，例如：\n\n"
+            "「午餐 120」\n"
+            "「捷運 50」\n"
+            "「買了一杯咖啡 65」\n\n"
+            "🤖 我會自動整理日期、分類、金額與消費項目。\n\n"
+            "📷 也可以直接傳送發票或收據，\n"
+            "讓 AI 幫你辨識消費資訊。"
         )
 
+    # 🔎 查詢
     elif text in ["查詢", "查詢資料"]:
         return (
             "🔎 SubWise 查詢\n\n"
-            "你想查看什麼？\n\n"
+            "你可以查看目前的資料：\n\n"
             "💰 消費｜查看消費紀錄\n"
             "🔔 訂閱｜查看目前訂閱\n\n"
-            "👇 點選下方選項開始"
+            "👇 點選下方選項開始查詢"
         )
 
+    # 📊 分析
     elif text in ["分析", "消費分析", "支出分析"]:
         return (
             "📊 SubWise 消費分析\n\n"
-            "請選擇你想分析的期間：\n\n"
+            "我可以幫你分析：\n\n"
             "📅 今天\n"
             "📆 本週\n"
             "🗓️ 本月\n\n"
-            "你也可以直接輸入：\n"
-            "「今天」\n"
-            "「本週」\n"
-            "「本月」"
+            "例如輸入「本月」，\n"
+            "就可以查看總支出、分類支出、\n"
+            "最高消費、最高單日消費與月度比較。"
         )
 
+    # 📷 發票辨識
     elif text in ["發票", "發票辨識", "收據", "收據辨識"]:
         return (
             "📷 SubWise 發票辨識\n\n"
             "直接傳送發票或收據照片給我，\n"
-            "我會協助辨識其中的消費資訊。\n\n"
-            "🚧 多模態辨識功能開發中"
+            "🤖 我會自動辨識消費資訊並協助記帳。\n\n"
+            "💡 支援拍照或直接傳送圖片"
         )
 
+    # 🔔 訂閱管理
     elif text in ["訂閱", "訂閱管理", "訂閱服務"]:
         return (
             "🔔 SubWise 訂閱管理\n\n"
-            "你可以管理 Netflix、Spotify、YouTube Premium\n"
-            "等週期性訂閱服務。\n\n"
-            "🚧 訂閱管理功能開發中"
+            "你可以管理週期性訂閱服務，例如：\n\n"
+            "Netflix\n"
+            "Spotify\n"
+            "YouTube Premium\n\n"
+            "💡 可以查看訂閱、新增訂閱，\n"
+            "並管理週期性服務。"
         )
 
+    # 📅 今天
     elif text in ["今天", "今日"]:
         return process_analysis_period("today")
 
+    # 📆 本週
     elif text in ["本週", "這週", "這周"]:
         return process_analysis_period("week")
 
+    # 🗓️ 本月
     elif text in ["本月", "這個月"]:
         return process_analysis_period("month")
-    
+
+    # ⏰ 扣款提醒
     elif text in ["扣款提醒", "即將扣款", "近期扣款"]:
         return process_upcoming_subscriptions()
 
@@ -480,11 +532,15 @@ def process_command(text):
             "🤖 SubWise\n\n"
             "AI 智慧記帳與訂閱管理管家\n\n"
             "目前功能：\n"
-            "✅ LINE Bot 對話\n"
-            "✅ 指令管理\n"
-            "🚧 AI 記帳開發中\n"
-            "🚧 發票辨識開發中\n"
-            "🚧 訂閱提醒開發中"
+            "💰 AI 智慧記帳\n"
+            "📷 發票／收據辨識\n"
+            "🔎 消費與訂閱查詢\n"
+            "📊 消費分析\n"
+            "🔔 訂閱管理\n"
+            "⏰ 扣款提醒\n"
+            "✏️ 消費修改與刪除\n"
+            "🧠 上下文理解\n\n"
+            "💡 輸入 help 查看功能選單。"
         )
 
     elif text.lower() == "ping":
@@ -682,10 +738,22 @@ def delete_expense(data):
 def process_ai_message(text):
     """使用 Gemini 判斷使用者意圖，並回傳 AI 回覆。"""
 
-    data = ask_gemini(text)
+    try:
+        data = ask_gemini(text)
+
+    except Exception as e:
+        print(f"❌ Gemini API 錯誤：{e}")
+
+        return get_friendly_error_message(
+            "gemini"
+        )
 
     if not data:
-        return "⚠️ SubWise AI 暫時無法處理這則訊息，請稍後再試。"
+        print("⚠️ Gemini 沒有回傳有效資料")
+
+        return get_friendly_error_message(
+            "gemini"
+        )
 
     data_type = data.get("type")
 
@@ -781,10 +849,8 @@ def process_ai_message(text):
         except Exception as e:
             print(f"❌ Google Sheets 查詢失敗：{e}")
 
-            return (
-                "❌ 查詢失敗\n\n"
-                "⚠️ 目前無法取得 Google Sheets 的資料，"
-                "請稍後再試。"
+            return get_friendly_error_message(
+                "google_sheets"
             )
 
     elif data_type == "subscription_analysis":
@@ -946,6 +1012,9 @@ def handle_message(event):
         "記帳",
         "帳目",
         "新增記帳",
+
+        "查詢",
+        "查詢資料",
 
         "分析",
         "消費分析",

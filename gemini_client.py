@@ -321,7 +321,33 @@ period 只能使用：
 - yesterday：昨天
 - week：本週
 - month：本月
+- date：指定日期
 - all：全部資料
+
+date：
+
+- 只有使用者明確指定某一天時才使用。
+- 日期必須使用 YYYY-MM-DD。
+- 如果 period 不是 date，date 使用 null。
+- 如果使用者說「今天」，使用 period = today，date = null。
+- 如果使用者說「昨天」，使用 period = yesterday，date = null。
+- 如果使用者直接指定日期，例如「2026-08-25」，使用 period = date，date = "2026-08-25"。
+
+例如：
+
+「查詢 2026-08-25 的消費」
+
+→
+
+{
+    "type": "query",
+    "target": "expense",
+    "period": "date",
+    "date": "2026-08-25",
+    "keyword": null,
+    "category": null,
+    "upcoming": false
+}
 
 keyword：
 
