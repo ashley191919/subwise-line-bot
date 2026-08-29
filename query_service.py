@@ -298,7 +298,7 @@ def find_highest_expense(records):
     return highest
 
 
-def format_expense_result(records, period):
+def format_expense_result(records, period, target_date=None):
     """將消費查詢結果整理成適合使用者閱讀的文字。"""
 
     if not records:
@@ -316,10 +316,15 @@ def format_expense_result(records, period):
     # 4. 將消費按照日期由新到舊排序
     records = sort_expenses_by_date(records)
 
+    if period == "date":
+        period_text = f"📅 查詢日期：{target_date}"
+    else:
+        period_text = f"📅 查詢期間：{period}"
+
     lines = [
         "💰 SubWise 消費查詢",
         "",
-        f"📅 查詢期間：{period}",
+        period_text,
         f"💵 總支出：NT${total:.0f}",
         f"🧾 消費筆數：{count} 筆",
     ]
@@ -470,7 +475,8 @@ def query_data(data):
 
         return format_expense_result(
             records,
-            period
+            period,
+            target_date
         )
 
     # -------------------------
