@@ -3,7 +3,8 @@ import os
 from dotenv import load_dotenv
 from gemini_client import (
     ask_gemini,
-    ask_gemini_with_image
+    ask_gemini_with_image,
+    GeminiAPIError
 )
 from google_sheets import (
     get_expenses,
@@ -161,6 +162,15 @@ def get_friendly_error_message(error_type):
         "gemini":
             "⚠️ SubWise AI 暫時無法回應\n\n"
             "目前 AI 服務可能比較忙碌，"
+            "請稍後再試。",
+
+            "gemini_rate_limit":
+            "⏳ SubWise AI 目前使用量較高\n\n"
+            "請稍等一下，再重新輸入你的需求。",
+
+            "gemini_unavailable":
+            "🔧 SubWise AI 目前暫時無法使用\n\n"
+            "AI 服務可能正在忙碌或維護中，"
             "請稍後再試。",
 
         "google_sheets":
@@ -741,8 +751,31 @@ def process_ai_message(text):
     try:
         data = ask_gemini(text)
 
+    except GeminiAPIError as e:
+
+        print(
+            f"❌ Gemini API 錯誤："
+            f"status={e.status_code}, "
+            f"message={e.message}"
+        )
+
+        if e.status_code == 429:
+            return get_friendly_error_message(
+                "gemini_rate_limit"
+            )
+
+        if e.status_code == 503:
+            return get_friendly_error_message(
+                "gemini_unavailable"
+            )
+
+        return get_friendly_error_message(
+            "gemini"
+        )
+
     except Exception as e:
-        print(f"❌ Gemini API 錯誤：{e}")
+
+        print(f"❌ Gemini 未預期錯誤：{e}")
 
         return get_friendly_error_message(
             "gemini"

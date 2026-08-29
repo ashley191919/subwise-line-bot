@@ -12,6 +12,17 @@ client = genai.Client(
     api_key=os.getenv("GEMINI_API_KEY")
 )
 
+class GeminiAPIError(Exception):
+    """
+    Gemini API 錯誤。
+    用來把 API 錯誤狀態傳回 app.py。
+    """
+
+    def __init__(self, status_code=None, message=""):
+        self.status_code = status_code
+        self.message = message
+
+        super().__init__(message)
 
 SYSTEM_PROMPT = """
 你是 SubWise，一個 AI 智慧記帳與訂閱管理管家。
@@ -1150,7 +1161,6 @@ def ask_gemini(prompt):
         except json.JSONDecodeError:
 
             print("⚠️ Gemini 回傳的內容不是有效 JSON")
-
             print("原始回覆：")
             print(text)
 
@@ -1160,7 +1170,12 @@ def ask_gemini(prompt):
 
         print(f"❌ Gemini API 發生錯誤：{e}")
 
-        return None
+        status_code = getattr(e, "status_code", None)
+
+        raise GeminiAPIError(
+            status_code=status_code,
+            message=str(e)
+        )
 
 def ask_gemini_with_image(image_bytes, mime_type):
     """
